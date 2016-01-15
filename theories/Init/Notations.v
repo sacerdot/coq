@@ -124,3 +124,6 @@ Open Scope type_scope.
 Declare ML Module "ltac_plugin".
 
 Global Set Default Proof Mode "Classic".
+
+(** XML Plugin to be loaded at the very first .v *)
+Declare ML Module "xml_plugin".
