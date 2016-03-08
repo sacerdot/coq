@@ -143,6 +143,11 @@ plugins/ltac/coretactics.ml
 plugins/ltac/extratactics.ml
 plugins/ltac/extraargs.ml
 plugins/ltac/profile_ltac_tactics.ml
+plugins/xml/proofTree2Xml.ml
+plugins/xml/acic2Xml.ml
+plugins/xml/xml.ml
+plugins/xml/dumptree.ml
+plugins/xml/xmlentries.ml
 ide/coqide_main.ml
 plugins/ssrmatching/ssrmatching.ml
 plugins/ssr/ssrparser.ml

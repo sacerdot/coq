@@ -247,6 +247,8 @@ and subst_tacarg subst = function
   | ConstrMayEval c -> ConstrMayEval (subst_raw_may_eval subst c)
   | TacCall (loc,(f,l)) ->
       TacCall (Loc.tag ?loc (subst_reference subst f, List.map (subst_tacarg subst) l))
+  | TacExternal (loc,(com,req,la)) ->
+      TacExternal (Loc.tag ?loc (com,req,List.map (subst_tacarg subst) la))
   | TacFreshId _ as x -> x
   | TacPretype c -> TacPretype (subst_glob_constr subst c)
   | TacNumgoals -> TacNumgoals

@@ -505,6 +505,24 @@ modules/%.vo: modules/%.v
 
 misc: $(patsubst %.sh,%.log,$(wildcard misc/*.sh))
 
+# Test xml compilation
+xml: misc/xml.log
+misc/xml.log:
+	@echo "TEST      misc/xml"
+	$(HIDE){ \
+	  echo $(call log_intro,xml); \
+	  rm -rf misc/xml; \
+	  COQ_XML_LIBRARY_ROOT=misc/xml \
+	  $(bincoqc) -xml misc/berardi_test 2>&1; times; \
+	  if [ ! -d misc/xml ]; then \
+	    echo $(log_failure); \
+	    echo "    misc/xml... failed"; \
+	  else \
+	    echo $(log_success); \
+	    echo "    misc/xml...apparently ok"; \
+	  fi; rm -rf misc/xml; \
+	} > "$@"
+
 misc/universes.log: misc/universes/all_stdlib.v
 
 misc/universes/all_stdlib.v:

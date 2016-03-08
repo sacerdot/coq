@@ -1,3 +1,9 @@
+Changes beyond V8.9
+===================
+
+Tools
+- The XML plugin has been restored
+
 Changes from 8.9+beta1 to 8.9.0
 ===============================
 

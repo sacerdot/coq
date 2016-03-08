@@ -96,7 +96,7 @@ CORESRCDIRS:=\
 
 PLUGINDIRS:=\
   omega		romega 		micromega 	quote \
-  setoid_ring 	extraction \
+  setoid_ring 	extraction	xml \
   cc 		funind 		firstorder 	derive \
   rtauto 	nsatz           syntax          btauto \
   ssrmatching	ltac		ssr
@@ -134,6 +134,7 @@ MICROMEGACMO:=plugins/micromega/micromega_plugin.cmo
 QUOTECMO:=plugins/quote/quote_plugin.cmo
 RINGCMO:=plugins/setoid_ring/newring_plugin.cmo
 NSATZCMO:=plugins/nsatz/nsatz_plugin.cmo
+XMLCMO:=plugins/xml/xml_plugin.cmo
 EXTRACTIONCMO:=plugins/extraction/extraction_plugin.cmo
 FUNINDCMO:=plugins/funind/recdef_plugin.cmo
 FOCMO:=plugins/firstorder/ground_plugin.cmo

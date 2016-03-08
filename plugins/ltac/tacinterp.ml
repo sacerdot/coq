@@ -240,6 +240,24 @@ let coerce_to_tactic loc id v =
   else fail ()
 
 let intro_pattern_of_ident id = make @@ IntroNaming (IntroIdentifier id)
+
+(* External tactics *)
+let print_xml_term = ref (fun _ -> failwith "print_xml_term unset")
+let declare_xml_printer f = print_xml_term := f
+
+let internalise_tacarg ch = G_xml.parse_tactic_arg ch
+
+let extern_tacarg ch env sigma v = match Value.to_constr v with
+| None ->
+  error "Only externing of closed terms is implemented."
+| Some c -> !print_xml_term ch env sigma c
+
+let extern_request ch req gl la =
+  output_string ch "<REQUEST req=\""; output_string ch req;
+  output_string ch "\">\n";
+  List.iter (pf_apply (extern_tacarg ch) gl) la;
+  output_string ch "</REQUEST>\n"
+
 let value_of_ident id =
   in_gen (topwit wit_intro_pattern) (intro_pattern_of_ident id)
 
@@ -1213,6 +1231,10 @@ and interp_tacarg ist arg : Val.t Ftactic.t =
       interp_ltac_reference true ist f >>= fun fv ->
       Ftactic.List.map (fun a -> interp_tacarg ist a) l >>= fun largs ->
       interp_app loc ist fv largs
+  | TacExternal (loc,com,req,la) ->
+      let (>>=) = Ftactic.bind in
+      Ftactic.List.map (fun a -> interp_tacarg ist a) la >>= fun la_interp ->
+      interp_external loc ist com req la_interp
   | TacFreshId l ->
       Ftactic.enter begin fun gl ->
         let id = interp_fresh_id ist (pf_env gl) (project gl) l in
@@ -1439,6 +1461,13 @@ and interp_match_goal ist lz lr lmr =
       let ilr = read_match_rule (extract_ltac_constr_values ist env) ist env sigma lmr in
       interp_match_successes lz ist (Tactic_matching.match_goal env sigma hyps concl ilr)
     end
+
+and interp_external loc ist com req la =
+  Ftactic.nf_enter begin fun gl ->
+  let f ch = Tacmach.New.of_old (fun gl -> extern_request ch req gl la) gl in
+  let g ch = internalise_tacarg ch in
+  interp_tacarg ist (System.connect f g com)
+  end
 
 (* Interprets extended tactic generic arguments *)
 and interp_genarg ist x : Val.t Ftactic.t =
