@@ -23,6 +23,7 @@ let print_if_verbose s = if !verbose then print_string s;;
 open Decl_kinds
 open Names
 open Util
+open Declarations
 
 (* filter_params pvars hyps *)
 (* filters out from pvars (which is a list of lists) all the variables *)
@@ -414,6 +415,115 @@ let show fn =
   show_pftreestate false fn (kind,pftst) id
 ;;
 
+(***** Module Printing ****)
+
+let rec print_functor xml_library_root fty fatom is_type env mp locals = function
+  |NoFunctor me -> fatom xml_library_root is_type env mp locals me
+  |MoreFunctor (mbid,mtb1,me2) ->
+assert false (*
+      nametab_register_modparam mbid mtb1;
+      let mp1 = MPbound mbid in
+      let pr_mtb1 = fty env mp1 locals mtb1 in
+      let env' = Option.map (Modops.add_module_type mp1 mtb1) env in
+      let locals' = (mbid, get_new_id locals (MBId.to_id mbid))::locals in
+      let kwd = if is_type then "Funsig" else "Functor" in
+      hov 2
+        (keyword kwd ++ spc () ++
+         str "(" ++ pr_id (MBId.to_id mbid) ++ str ":" ++ pr_mtb1 ++ str ")" ++
+         spc() ++ print_functor fty fatom is_type env' mp locals' me2)
+*)
+
+let print_body xml_library_root is_impl env mp (l,body) =
+  (*let name = str (Label.to_string l) in*)
+  match body with
+    | SFBmodule _ -> assert false
+    | SFBmodtype _ -> assert false
+    | SFBconst _(*cb*) ->
+       let kn = Constant.make1 mp ^ l in
+       print (Globnames.ConstRef kn) (kind_of_constant kn) xml_library_root
+(*
+       let u =
+         if cb.const_polymorphic then Univ.UContext.instance cb.const_universes
+         else Univ.Instance.empty
+       in
+       let sigma = Evd.empty in
+      (match cb.const_body with
+        | Def _ -> def "Definition" ++ spc ()
+        | OpaqueDef _ when is_impl -> def "Theorem" ++ spc ()
+        | _ -> def "Parameter" ++ spc ()) ++ name ++
+      (match env with
+          | None -> mt ()
+          | Some env ->
+            str " :" ++ spc () ++
+            hov 0 (Printer.pr_ltype_env env sigma
+                (Vars.subst_instance_constr u
+                  (Typeops.type_of_constant_type env cb.const_type))) ++
+            (match cb.const_body with
+              | Def l when is_impl ->
+                spc () ++
+                hov 2 (str ":= " ++
+                       Printer.pr_lconstr_env env sigma
+                          (Vars.subst_instance_constr u (Mod_subst.force_constr l)))
+              | _ -> mt ()) ++ str "." ++
+            Printer.pr_universe_ctx sigma (Univ.instantiate_univ_context cb.const_universes)) *)
+    | SFBmind mib -> assert false (*
+      try
+        let env = Option.get env in
+        pr_mutual_inductive_body env (MutInd.make2 mp l) mib
+      with e when Errors.noncritical e ->
+        let keyword =
+          let open Decl_kinds in
+          match mib.mind_finite with
+          | Finite -> def "Inductive"
+          | BiFinite -> def "Variant"
+          | CoFinite -> def "CoInductive"
+        in
+        keyword ++ spc () ++ name *)
+
+let print_structure xml_library_root is_type env mp locals struc =
+  (*let env' = Option.map
+    (Modops.add_structure mp struc Mod_subst.empty_delta_resolver) env in
+  nametab_register_module_body mp struc;*) let env' = env in
+  (*XXXXX *)
+  (*let kwd = if is_type then "Sig" else "Struct" in
+  hv 2 (keyword kwd ++ spc () ++ print_struct false env' mp struc ++
+        brk (1,-2) ++ keyword "End")*)
+  List.iter (print_body xml_library_root false env' mp) struc
+
+let print_modtype xml_library_root env mp locals mtb =
+ (* match mtb.mod_type_alg with
+  | Some me -> print_expression true env mp locals me
+  | None -> print_signature true env mp locals mtb.mod_type*)
+ print_signature xml_library_root true env mp locals mtb.mod_type
+
+and print_signature xml_library_root x =
+ print_functor xml_library_root print_modtype print_structure x
+
+let print_signature' xml_library_root is_type env mp me =
+ (* States.with_state_protection
+    (fun e -> eval_ppcmds (print_signature is_type env mp [] e)) me*)
+ print_signature xml_library_root is_type env mp [] me
+
+let print_module xml_library_root env mp mb =
+(*
+  let name = print_modpath [] mp in
+  let pr_equals = spc () ++ str ":= " in
+  let body = match mb.mod_expr with
+    | Abstract -> mt()
+    | Algebraic me -> pr_equals ++ print_expression' false env mp me
+    | Struct sign -> pr_equals ++ print_signature' false env mp sign
+    | FullStruct -> pr_equals ++ print_signature' false env mp mb.mod_type
+  in
+  let modtype = match mb.mod_expr, mb.mod_type_alg with
+    | FullStruct, _ -> mt ()
+    | _, Some ty -> brk (1,1) ++ str": " ++ print_expression' true env mp ty
+    | _, _ -> brk (1,1) ++ str": " ++ print_signature' true env mp mb.mod_type
+  in
+  hv 0 (keyword "Module" ++ spc () ++ name ++ modtype ++ body)
+*)
+  print_signature' xml_library_root true env mp mb.mod_type
+
+(***** End of Module Printing ****)
 
 (* Let's register the callbacks *)
 let xml_library_root =
@@ -427,6 +537,16 @@ let proof_to_export = ref None (* holds the proof-tree to export *)
 
 let ignore = ref false;;
 let _ = Hook.set Stm.tactic_being_run_hook (function b -> ignore := b);;
+
+let _ =
+  Hook.set Declaremods.xml_declare_module
+   (function mp -> if not !ignore then begin
+     let me = Global.lookup_module mp in
+     print_module xml_library_root (Global.env ()) mp me
+    end
+   )
+;;
+  
 
 let _ =
   Hook.set Declare.xml_declare_variable
