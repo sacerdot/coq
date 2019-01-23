@@ -86,7 +86,7 @@ let get_uri_of_var v pvars =
 type tag =
    Constant of Names.Constant.t
  | Inductive of Names.MutInd.t
- | Variable of Names.variable (*XXX ?? Names.kernel_name*)
+ | Variable of Names.KerName.t
 ;;
 
 type etag =
@@ -930,6 +930,7 @@ let acic_object_of_cic_object sigma obj =
      ids_to_inner_types,ids_to_conjectures,ids_to_hypotheses
 ;;
 *)
+let uri_of_kernel_name _ = assert false
 let source_id_of_id _ = assert false
 let token_list_of_kernel_name _ = assert false
 let acic_object_of_cic_object _ = assert false
