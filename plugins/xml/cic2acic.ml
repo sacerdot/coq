@@ -250,38 +250,33 @@ let typeur sigma metamap =
           (subst_type env sigma (type_of env f) (Array.to_list args))
 *)
     | T.Cast (c,_, t) -> t
-(*
     | T.Sort _ | T.Prod _ ->
-       match sort_of env cstr with
-          Coq_sort T.InProp -> T.mkProp
-        | Coq_sort T.InSet -> T.mkSet
-        | Coq_sort T.InType -> T.mkType Univ.type1_univ (* ERROR HERE *)
-        | CProp -> T.mkConst DoubleTypeInference.cprop
-*)
+       match sort_of env sigma cstr with
+          Coq_sort Sorts.InProp -> EConstr.mkProp
+        | Coq_sort Sorts.InSet -> EConstr.mkSet
+        | Coq_sort Sorts.InType -> EConstr.mkType Univ.type1_univ (* ERROR HERE *)
+        | CProp -> EConstr.mkConst DoubleTypeInference.cprop
 
-(*
-  and sort_of env t =
-    match Term.kind_of_term t with
-    | T.Cast (c,_, s) when T.isSort s -> family_of_term sigma s
-    | T.Sort (T.Prop c) -> Coq_sort T.InType
-    | T.Sort (T.Type u) -> Coq_sort T.InType
+  and sort_of env evar_map t =
+    match EConstr.kind evar_map t with
+    | T.Cast (c,_, s) when EConstr.isSort evar_map s -> family_of_term sigma s
+    | T.Sort _ -> Coq_sort Sorts.InType (*XXX???*)
     | T.Prod (name,t,c2) ->
-       (match sort_of env t,sort_of (push_rel (name,None,t) env) c2 with
-          | _, (Coq_sort T.InProp as s) -> s
-          | Coq_sort T.InProp, (Coq_sort T.InSet as s)
-          | Coq_sort T.InSet, (Coq_sort T.InSet as s) -> s
-          | Coq_sort T.InType, (Coq_sort T.InSet as s)
-          | CProp, (Coq_sort T.InSet as s) when
-              fst (Environ.engagement env) = Declarations.ImpredicativeSet -> s
-          | Coq_sort T.InType, Coq_sort T.InSet
-          | CProp, Coq_sort T.InSet -> Coq_sort T.InType
-          | _, (Coq_sort T.InType as s) -> s (*Type Univ.dummy_univ*)
+       (match sort_of env evar_map t,sort_of (push_rel (name,None,t) env) evar_map c2 with
+          | _, (Coq_sort Sorts.InProp as s) -> s
+          | Coq_sort Sorts.InProp, (Coq_sort Sorts.InSet as s)
+          | Coq_sort Sorts.InSet, (Coq_sort Sorts.InSet as s) -> s
+          | Coq_sort Sorts.InType, (Coq_sort Sorts.InSet as s)
+          | CProp, (Coq_sort Sorts.InSet as s) when
+              Environ.engagement env = Declarations.ImpredicativeSet -> s
+          | Coq_sort Sorts.InType, Coq_sort Sorts.InSet
+          | CProp, Coq_sort Sorts.InSet -> Coq_sort Sorts.InType
+          | _, (Coq_sort Sorts.InType as s) -> s (*Type Univ.dummy_univ*)
           | _, (CProp as s) -> s)
     | T.App(f,args) -> sort_of_atomic_type env sigma (type_of env f) args
     | T.Lambda _ | T.Fix _ | T.Construct _ ->
         CErrors.anomaly ~label:"sort_of" (Pp.str "Not a type (1)")
     | _ -> outsort env sigma (type_of env t)
-*)
 
   and sort_family_of env evar_map t =
     match EConstr.kind evar_map t with
@@ -525,11 +520,11 @@ print_endline "PASSATO" ; flush stdout ;
             else
              compute_result_if_eta_expansion_not_required subst residual_args
          in
-assert false(*
 
           (* Now that we have all the auxiliary functions we  *)
           (* can finally proceed with the main case analysis. *)
-          match Term.kind_of_term tt with
+          match EConstr.kind evar_map tt with
+(*
           | Term.Proj _ -> assert false
           | Term.Rel n ->
               let id =
@@ -557,7 +552,9 @@ assert false(*
               Acic.AEvar
                (fresh_id'', n, Array.to_list (Array.map (aux' env idrefs) l))
            | Term.Meta _ -> CErrors.anomaly (Pp.str "Meta met during exporting to XML")
-           | Term.Sort s -> Acic.ASort (fresh_id'', s)
+*)
+           | Constr.Sort s -> Acic.ASort (fresh_id'', EConstr.ESorts.kind evar_map s)
+(*
            | Term.Cast (v,_, t) ->
               Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
               if is_a_Prop innersort then
@@ -728,7 +725,8 @@ assert false(*
                 explicit_substitute_and_eta_expand_if_required tt []
                  (List.map snd subst')
                  compute_result_if_eta_expansion_not_required
-           | Term.Ind ((kn,i),u) ->
+*)
+           | Constr.Ind ((kn,i),u) ->
               let compute_result_if_eta_expansion_not_required _ _ =
                Acic.AInd (fresh_id'', subst, (uri_of_kernel_name (Inductive kn)), i)
               in
@@ -736,7 +734,7 @@ assert false(*
                 explicit_substitute_and_eta_expand_if_required tt []
                  (List.map snd subst')
                  compute_result_if_eta_expansion_not_required
-           | Term.Construct (((kn,i),j),u) ->
+           | Constr.Construct (((kn,i),j),u) ->
               Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
               if is_a_Prop innersort  && expected_available then
                add_inner_type fresh_id'' ;
@@ -748,6 +746,7 @@ assert false(*
                 explicit_substitute_and_eta_expand_if_required tt []
                  (List.map snd subst')
                  compute_result_if_eta_expansion_not_required
+(*
            | Term.Case ({Term.ci_ind=(kn,i)},ty,term,a) ->
               Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
               if is_a_Prop innersort then
