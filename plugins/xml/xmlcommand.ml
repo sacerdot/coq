@@ -242,8 +242,9 @@ let mk_constant_obj id bo ty variables hyps =
        (Id.to_string id, Some (Unshare.unshare c), ty,params)
 ;;
 
-(*
 let mk_inductive_obj sp mib packs variables nparams hyps finite =
+assert false
+(*
   let hyps = string_list_of_named_context_list hyps in
   let params = filter_params variables hyps in
 (*  let nparams = extract_nparams packs in *)
@@ -282,10 +283,9 @@ let theory_output_string ?(do_not_quote = false) s =
    Buffer.add_string theory_buffer s
 ;;
 
-(*
 let kind_of_inductive isrecord kn =
  "DEFINITION",
- if (fst (Global.lookup_inductive (kn,0))).Declarations.mind_finite <> Decl_kinds.CoFinite
+ if (fst (Global.lookup_inductive (kn,0))).Declarations.mind_finite <> CoFinite
  then if isrecord then "Record" else "Inductive"
  else "CoInductive"
 ;;
@@ -297,9 +297,8 @@ let kind_of_variable id =
     | IsAssumption Conjectural -> "VARIABLE","Conjecture"
     | IsDefinition Definition -> "VARIABLE","LocalDefinition"
     | IsProof _ -> "VARIABLE","LocalFact"
-    | _ -> Errors.anomaly (Pp.str "Unsupported variable kind")
+    | _ -> CErrors.anomaly (Pp.str "Unsupported variable kind")
 ;;
-*)
 
 let kind_of_constant kn =
   match Decls.constant_kind kn with
@@ -309,6 +308,9 @@ let kind_of_constant kn =
         Feedback.msg_warning (Pp.str "Conjecture not supported in dtd (used Declaration instead)");
         "AXIOM","Declaration"
     | IsDefinition Definition -> "DEFINITION","Definition"
+    | IsDefinition Let ->
+        Feedback.msg_warning (Pp.str "Let not supported in dtd (used Definition instead)");
+        "DEFINITION","Definition"
     | IsDefinition Example ->
         Feedback.msg_warning (Pp.str "Example not supported in dtd (used Definition instead)");
         "DEFINITION","Definition"
@@ -349,7 +351,6 @@ let kind_of_constant kn =
         "THEOREM",Kindops.string_of_theorem_kind Theorem
 ;;
 
-(*
 let kind_of_global r =
   match r with
   | Globnames.IndRef kn | Globnames.ConstructRef (kn,_) ->
@@ -360,7 +361,6 @@ let kind_of_global r =
   | Globnames.VarRef id -> kind_of_variable id
   | Globnames.ConstRef kn -> kind_of_constant kn
 ;;
-*)
 
 let print_object_kind uri (xmltag,variation) =
   let s =
@@ -403,17 +403,15 @@ let print glob_ref kind xml_library_root =
        let val0 = Option.map EConstr.of_constr val0 in
        let typ = EConstr.of_constr typ in
         Cic2acic.Constant kn,mk_constant_obj id val0 typ variables hyps
-(*
     | Globnames.IndRef (kn,_) ->
        let mib = Global.lookup_mind kn in
        let {Declarations.mind_nparams=nparams;
 	    Declarations.mind_packets=packs ;
             Declarations.mind_hyps=hyps;
             Declarations.mind_finite=finite} = mib in
-          Cic2acic.Inductive kn,mk_inductive_obj kn mib packs variables nparams hyps (finite<>Decl_kinds.CoFinite)
+          Cic2acic.Inductive kn,mk_inductive_obj kn mib packs variables nparams hyps (finite<>CoFinite)
     | Globnames.ConstructRef _ ->
        error ("a single constructor cannot be printed in XML")
-*)
   in
   let fn = filename_of_path xml_library_root tag in
   let uri = Cic2acic.uri_of_kernel_name tag in
@@ -421,11 +419,9 @@ let print glob_ref kind xml_library_root =
   print_object uri obj Evd.empty fn
 ;;
 
-(*
 let print_ref qid fn =
   let ref = Nametab.global qid in
   print ref (kind_of_global ref) fn
-*)
 
 (* show dest                                                  *)
 (*  where dest is either None (for stdout) or (Some filename) *)
@@ -434,9 +430,8 @@ let show_pftreestate internal fn (kind,pftst) id =
  if true then
    CErrors.anomaly (Pp.str "Xmlcommand.show_pftreestate is not supported in this version.")
 
-(*
 let show fn =
- let pftst = Pfedit.get_pftreestate () in
+ let pftst = Proof_global.give_me_the_proof () in
  let (id,kind,_) = Pfedit.current_proof_statement () in
   show_pftreestate false fn (kind,pftst) id
 ;;
@@ -465,8 +460,10 @@ let print_body xml_library_root is_impl env mp (l,body) =
     | SFBmodule _ -> assert false
     | SFBmodtype _ -> assert false
     | SFBconst _(*cb*) ->
+assert false (*
        let kn = Constant.make1 mp ^ l in
        print (Globnames.ConstRef kn) (kind_of_constant kn) xml_library_root
+*)
 (*
        let u =
          if cb.const_polymorphic then Univ.UContext.instance cb.const_universes
@@ -516,7 +513,7 @@ let print_structure xml_library_root is_type env mp locals struc =
         brk (1,-2) ++ keyword "End")*)
   List.iter (print_body xml_library_root false env' mp) struc
 
-let print_modtype xml_library_root env mp locals mtb =
+let rec print_modtype xml_library_root env mp locals mtb =
  (* match mtb.mod_type_alg with
   | Some me -> print_expression true env mp locals me
   | None -> print_signature true env mp locals mtb.mod_type*)
@@ -548,7 +545,6 @@ let print_module xml_library_root env mp mb =
   hv 0 (keyword "Module" ++ spc () ++ name ++ modtype ++ body)
 *)
   print_signature' xml_library_root true env mp mb.mod_type
-*)
 
 (***** End of Module Printing ****)
 
@@ -563,8 +559,9 @@ let proof_to_export = ref None (* holds the proof-tree to export *)
 ;;
 
 let ignore = ref false;;
-(*
+(*XXX???
 let _ = Hook.set Stm.tactic_being_run_hook (function b -> ignore := b);;
+*)
 
 let _ =
   Hook.set Declaremods.xml_declare_module
@@ -584,7 +581,6 @@ let _ =
      proof_to_export := None
      end)
 ;;
-*)
 
 let _ =
   Hook.set Declare.xml_declare_constant
@@ -602,17 +598,16 @@ let _ =
          proof_to_export := None end)
 ;;
 
-(*
 let _ =
   Hook.set Declare.xml_declare_inductive
    (function (isrecord,(sp,kn)) -> if not !ignore then begin
-      print (Globnames.IndRef (Names.mind_of_kn kn,0))
-        (kind_of_inductive isrecord (Names.mind_of_kn kn))
+      print (Globnames.IndRef (Names.MutInd.make1 kn,0))
+        (kind_of_inductive isrecord (Names.MutInd.make1 kn))
         xml_library_root end)
 ;;
 
 let _ =
-  Hook.set Vernac.xml_start_library
+  Hook.set Coqtop.xml_start_library
    (function () ->
      library_dp := Lib.library_dp ();
      Buffer.reset theory_buffer;
@@ -630,7 +625,7 @@ let _ =
 ;;
 
 let _ =
-  Hook.set Vernac.xml_end_library
+  Hook.set Coqtop.xml_end_library
    (function () ->
       theory_output_string "</body>\n</html>\n";
       let ofn = theory_filename xml_library_root in
@@ -649,7 +644,7 @@ let _ =
 	  let options = " --no-glob --html -s --body-only --no-index --latin1 --raw-comments" in
           let command cmd =
            if Sys.command cmd <> 0 then
-            Errors.anomaly (Pp.str ("Error executing \"" ^ cmd ^ "\""))
+            CErrors.anomaly (Pp.str ("Error executing \"" ^ cmd ^ "\""))
           in
            command (coqdoc^options^" -o "^fn^".xml "^fn^".v");
            command ("rm "^fn^".v " ^ Filename.dirname fn ^"/" ^ "coqdoc.css");
@@ -657,7 +652,7 @@ let _ =
        ofn)
 ;;
 
-let _ = Hook.set Lexer.xml_output_comment (theory_output_string ~do_not_quote:true) ;;
+let _ = Hook.set CLexer.xml_output_comment (theory_output_string ~do_not_quote:true) ;;
 
 let uri_of_dirpath dir =
   "/" ^ String.concat "/"
@@ -682,6 +677,3 @@ let _ =
       (Printf.sprintf "<b>Require</b> <a helm:helm_link=\"href\" href=\"theory:%s.theory\">%s</a>.<br/>"
        (uri_of_dirpath d) (DirPath.to_string d)))
 ;;
-*)
-let print_ref _ = assert false
-let show _ = assert false

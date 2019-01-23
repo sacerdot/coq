@@ -201,21 +201,17 @@ let typeur sigma metamap =
   let rec type_of env cstr=
     match EConstr.kind sigma cstr with
     | T.Proj _ -> assert false
-(*
     | T.Meta n ->
-          (try Termops.strip_outer_cast (Int.List.assoc n metamap)
+          (try Termops.strip_outer_cast sigma (Int.List.assoc n metamap)
            with Not_found -> CErrors.anomaly ~label:"type_of" (Pp.str "this is not a well-typed term"))
-*)
     | T.Rel n ->
         let ty = Context.Rel.Declaration.get_type (EConstr.lookup_rel n env) in
         EConstr.Vars.lift n ty
-(*
     | T.Var id ->
         (try
-          Context.Named.Declaration.get_type (Environ.lookup_named id env)
+          EConstr.of_constr (Context.Named.Declaration.get_type (Environ.lookup_named id env))
         with Not_found ->
           CErrors.anomaly ~label:"type_of" (str "variable " ++ Id.print id ++ str " unbound"))
-*)
     | T.Const (c,u) ->
        EConstr.of_constr (Typeops.type_of_constant_in env (c, EConstr.EInstance.kind sigma u))
     | T.Evar ev -> Evd.existential_type sigma ev
