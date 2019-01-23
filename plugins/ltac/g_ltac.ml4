@@ -155,6 +155,8 @@ GEXTEND Gram
       | IDENT "idtac"; l = LIST0 message_token -> TacId l
       | g=failkw; n = [ n = int_or_var -> n | -> fail_default_value ];
 	  l = LIST0 message_token -> TacFail (g,n,l)
+      | IDENT "external"; com = STRING; req = STRING; la = LIST1 tactic_arg ->
+          TacArg (Loc.tag ~loc:!@loc @@ TacExternal (Loc.tag ~loc:!@loc (com,req,la)))
       | st = simple_tactic -> st
       | a = tactic_arg -> TacArg(Loc.tag ~loc:!@loc a)
       | r = reference; la = LIST0 tactic_arg_compat ->

@@ -245,7 +245,11 @@ let intro_pattern_of_ident id = make @@ IntroNaming (IntroIdentifier id)
 let print_xml_term = ref (fun _ -> failwith "print_xml_term unset")
 let declare_xml_printer f = print_xml_term := f
 
-let internalise_tacarg ch = G_xml.parse_tactic_arg ch
+let internalise_tacarg ch = assert false (*??? G_xml.parse_tactic_arg ch*)
+
+let error msg =
+ prerr_endline msg ;
+ assert false
 
 let extern_tacarg ch env sigma v = match Value.to_constr v with
 | None ->
@@ -1231,7 +1235,7 @@ and interp_tacarg ist arg : Val.t Ftactic.t =
       interp_ltac_reference true ist f >>= fun fv ->
       Ftactic.List.map (fun a -> interp_tacarg ist a) l >>= fun largs ->
       interp_app loc ist fv largs
-  | TacExternal (loc,com,req,la) ->
+  | TacExternal (loc,(com,req,la)) ->
       let (>>=) = Ftactic.bind in
       Ftactic.List.map (fun a -> interp_tacarg ist a) la >>= fun la_interp ->
       interp_external loc ist com req la_interp
@@ -1463,11 +1467,12 @@ and interp_match_goal ist lz lr lmr =
     end
 
 and interp_external loc ist com req la =
+assert false (*???
   Ftactic.nf_enter begin fun gl ->
   let f ch = Tacmach.New.of_old (fun gl -> extern_request ch req gl la) gl in
   let g ch = internalise_tacarg ch in
   interp_tacarg ist (System.connect f g com)
-  end
+  end*)
 
 (* Interprets extended tactic generic arguments *)
 and interp_genarg ist x : Val.t Ftactic.t =

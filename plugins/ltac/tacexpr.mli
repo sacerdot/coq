@@ -203,6 +203,7 @@ type 'a gen_tactic_arg =
   | ConstrMayEval  of ('trm,'cst,'pat) may_eval
   | Reference      of 'ref
   | TacCall    of ('ref * 'a gen_tactic_arg list) Loc.located
+  | TacExternal of (string * string * 'a gen_tactic_arg list) Loc.located
   | TacFreshId of string or_var list
   | Tacexp of 'tacexpr
   | TacPretype of 'trm

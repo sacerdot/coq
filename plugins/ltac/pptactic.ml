@@ -1086,6 +1086,9 @@ let pr_goal_selector ~toplevel s =
             keyword "type_term" ++ pr.pr_constr c
           | TacNumgoals ->
             keyword "numgoals"
+          | TacExternal (_,(com,req,la)) ->
+              str "external" ++ spc() ++ qs com ++ spc() ++ qs req ++
+              spc() ++ prlist_with_sep spc pr_tacarg la
           | (TacCall _|Tacexp _ | TacGeneric _) as a ->
             hov 0 (keyword "ltac:" ++ surround (pr_tac ltop (TacArg (Loc.tag a))))
 

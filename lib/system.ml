@@ -268,6 +268,10 @@ let with_magic_number_check f a =
 
 (* Communication through files with another executable *)
 
+let error msg =
+ prerr_endline msg ;
+ assert false
+
 let connect writefun readfun com =
   (* step 0 : prepare temporary files and I/O channels *)
   let name = Filename.basename com in

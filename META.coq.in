@@ -277,6 +277,19 @@ package "plugins" (
 
   )
 
+  package "xml" (
+
+    description = "Coq XML Extraction Plugin"
+    version     = "8.9"
+
+    requires    = "coq.plugins.ltac"
+    directory   = "xml"
+
+    archive(byte)    = "xml_plugin.cmo"
+    archive(native)  = "xml_plugin.cmx"
+
+  )
+
   package "tauto" (
 
     description = "Coq tauto plugin"

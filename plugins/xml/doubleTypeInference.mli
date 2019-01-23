@@ -12,13 +12,13 @@
 (*                       http://helm.cs.unibo.it                        *)
 (************************************************************************)
 
-type types = { synthesized : Term.types; expected : Term.types option; }
+type types = { synthesized : Constr.types; expected : Constr.types option; }
 
-val cprop : Names.constant
+val cprop : Names.Constant.t
 
 val whd_betadeltaiotacprop :
-  Environ.env -> Evd.evar_map -> Term.constr -> Term.constr
+  Environ.env -> Evd.evar_map -> Constr.constr -> Constr.constr
 
 val double_type_of :
-  Environ.env -> Evd.evar_map -> Term.constr -> Term.constr option ->
+  Environ.env -> Evd.evar_map -> Constr.constr -> Constr.constr option ->
    types Acic.CicHash.t -> unit

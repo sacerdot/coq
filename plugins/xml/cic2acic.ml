@@ -27,7 +27,7 @@ let get_module_path_of_full_path path =
     (function modul -> Libnames.is_dirpath_prefix_of modul dirpath) modules
   with
      [] ->
-       Pp.msg_warning (Pp.str ("Modules not supported: reference to "^
+       Feedback.msg_warning (Pp.str ("Modules not supported: reference to "^
          Libnames.string_of_path path^" will be wrong"));
        dirpath
    | [modul] -> modul
@@ -56,11 +56,14 @@ let remove_module_dirpath_from_dirpath ~basedir dir =
   else DirPath.repr dir
 ;;
 
+let error msg =
+ prerr_endline msg ;
+ assert false
 
 let get_uri_of_var v pvars =
   let rec search_in_open_sections =
    function
-      [] -> Errors.error ("Variable "^v^" not found")
+      [] -> error ("Variable "^v^" not found")
     | he::tl as modules ->
        let dirpath = DirPath.make modules in
        if Id.List.mem (Id.of_string v) (Decls.last_section_hyps dirpath)
@@ -81,9 +84,9 @@ let get_uri_of_var v pvars =
 ;;
 
 type tag =
-   Constant of Names.constant
- | Inductive of Names.mutual_inductive
- | Variable of Names.kernel_name
+   Constant of Names.Constant.t
+ | Inductive of Names.MutInd.t
+ | Variable of Names.variable (*XXX ?? Names.kernel_name*)
 ;;
 
 type etag =
@@ -124,6 +127,7 @@ let token_list_of_path dir id tag =
    List.rev_map Id.to_string (DirPath.repr dirpath) in
   token_list_of_dirpath dir @ [Id.to_string id ^ "." ^ (ext_of_tag tag)]
 
+(*XXX
 let token_list_of_kernel_name tag =
  let id,dir = match tag with
    | Variable kn ->
@@ -165,7 +169,7 @@ let family_of_term ty =
 
 module CPropRetyping =
  struct
-  module T = Term
+  module T = Constr
   module V = Vars
 
   let outsort env sigma t =
@@ -924,4 +928,12 @@ let acic_object_of_cic_object sigma obj =
    in
     aobj,ids_to_terms,constr_to_ids,ids_to_father_ids,ids_to_inner_sorts,
      ids_to_inner_types,ids_to_conjectures,ids_to_hypotheses
+;;
+*)
+let source_id_of_id _ = assert false
+let token_list_of_kernel_name _ = assert false
+let acic_object_of_cic_object _ = assert false
+let acic_of_cic_context' _ = assert false
+type anntypes =
+ {annsynthesized : Acic.aconstr ; annexpected : Acic.aconstr option}
 ;;

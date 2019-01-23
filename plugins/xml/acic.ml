@@ -13,13 +13,13 @@
 (************************************************************************)
 
 open Names
-open Term
+open Constr
 
 (* Maps fron \em{unshared} [constr] to ['a]. *)
 module CicHash =
  Hashtbl.Make
   (struct
-    type t = Term.constr
+    type t = Constr.constr
     let equal = (==)
     let hash = Hashtbl.hash
    end)
@@ -37,7 +37,7 @@ type 'constr context_entry =
 type 'constr hypothesis = Id.t * 'constr context_entry
 type context = constr hypothesis list
 
-type conjecture = existential_key * context * constr
+type conjecture = Evar.t * context * constr
 type metasenv = conjecture list
 
 (* list of couples section path -- variables defined in that section *)
@@ -65,8 +65,8 @@ and constructor =
 type aconstr =
   | ARel       of id * int * id * Id.t
   | AVar       of id * uri
-  | AEvar      of id * existential_key * aconstr list
-  | ASort      of id * sorts
+  | AEvar      of id * Evar.t * aconstr list
+  | ASort      of id * Sorts.t
   | ACast      of id * aconstr * aconstr
   | AProds     of (id * Name.t * aconstr) list * aconstr
   | ALambdas   of (id * Name.t * aconstr) list * aconstr
@@ -85,7 +85,7 @@ and acoinductivefun =
 and explicit_named_substitution = id option * (uri * aconstr) list
 
 type acontext = (id * aconstr hypothesis) list
-type aconjecture = id * existential_key * acontext * aconstr
+type aconjecture = id * Evar.t * acontext * aconstr
 type ametasenv = aconjecture list
 
 type aobj =

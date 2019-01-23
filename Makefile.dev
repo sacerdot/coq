@@ -171,6 +171,7 @@ noreal: unicode logic arith bool zarith qarith lists sets fsets \
 OMEGAVO:=$(filter plugins/omega/%, $(PLUGINSVO))
 ROMEGAVO:=$(filter plugins/romega/%, $(PLUGINSVO))
 MICROMEGAVO:=$(filter plugins/micromega/%, $(PLUGINSVO))
+XMLVO:=$(filter plugins/xml/%, $(PLUGINSVO))
 QUOTEVO:=$(filter plugins/quote/%, $(PLUGINSVO))
 RINGVO:=$(filter plugins/setoid_ring/%, $(PLUGINSVO))
 NSATZVO:=$(filter plugins/nsatz/%, $(PLUGINSVO))

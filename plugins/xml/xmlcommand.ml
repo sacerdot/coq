@@ -84,7 +84,7 @@ let rec join_dirs cwd =
   | he::tail ->
       (try
         Unix.mkdir cwd 0o775
-       with e when Errors.noncritical e -> () (* ignore the errors on mkdir *)
+       with e when CErrors.noncritical e -> () (* ignore the errors on mkdir *)
       ) ;
      let newcwd = cwd ^ "/" ^ he in
       join_dirs newcwd tail
@@ -159,13 +159,14 @@ let string_list_of_named_context_list =
   (function (n,_,_) -> Id.to_string n)
 ;;
 
+(*XXXX
 (* Function to collect the variables that occur in a term. *)
 (* Used only for variables (since for constants and mutual *)
 (* inductive types this information is already available.  *)
 let find_hyps t =
   let rec aux l t =
-   match Term.kind_of_term t with
-      Term.Var id when not (Id.List.mem id l) ->
+   match Constr.kind_of_term t with
+      Constr.Var id when not (Id.List.mem id l) ->
        let (_,bo,ty) = Global.lookup_named id in
         let boids =
          match bo with
@@ -173,28 +174,28 @@ let find_hyps t =
           | None -> l
         in
          id::(aux boids ty)
-    | Term.Var _
-    | Term.Rel _
-    | Term.Meta _
-    | Term.Evar _
-    | Term.Sort _ -> l
-    | Term.Proj _ -> ignore(Errors.todo "Proj in find_hyps"); assert false
-    | Term.Cast (te,_, ty) -> aux (aux l te) ty
-    | Term.Prod (_,s,t) -> aux (aux l s) t
-    | Term.Lambda (_,s,t) -> aux (aux l s) t
-    | Term.LetIn (_,s,_,t) -> aux (aux l s) t
-    | Term.App (he,tl) -> Array.fold_left (fun i x -> aux i x) (aux l he) tl
-    | Term.Const (con, _) ->
+    | Constr.Var _
+    | Constr.Rel _
+    | Constr.Meta _
+    | Constr.Evar _
+    | Constr.Sort _ -> l
+    | Constr.Proj _ -> ignore(Errors.todo "Proj in find_hyps"); assert false
+    | Constr.Cast (te,_, ty) -> aux (aux l te) ty
+    | Constr.Prod (_,s,t) -> aux (aux l s) t
+    | Constr.Lambda (_,s,t) -> aux (aux l s) t
+    | Constr.LetIn (_,s,_,t) -> aux (aux l s) t
+    | Constr.App (he,tl) -> Array.fold_left (fun i x -> aux i x) (aux l he) tl
+    | Constr.Const (con, _) ->
        let hyps = (Global.lookup_constant con).Declarations.const_hyps in
         map_and_filter l hyps @ l
-    | Term.Ind (ind,_)
-    | Term.Construct ((ind,_),_) ->
+    | Constr.Ind (ind,_)
+    | Constr.Construct ((ind,_),_) ->
        let hyps = (fst (Global.lookup_inductive ind)).Declarations.mind_hyps in
         map_and_filter l hyps @ l
-    | Term.Case (_,t1,t2,b) ->
+    | Constr.Case (_,t1,t2,b) ->
        Array.fold_left (fun i x -> aux i x) (aux (aux l t1) t2) b
-    | Term.Fix (_,(_,tys,bodies))
-    | Term.CoFix (_,(_,tys,bodies)) ->
+    | Constr.Fix (_,(_,tys,bodies))
+    | Constr.CoFix (_,(_,tys,bodies)) ->
        let r = Array.fold_left (fun i x -> aux i x) l tys in
         Array.fold_left (fun i x -> aux i x) r bodies
   and map_and_filter l =
@@ -652,3 +653,6 @@ let _ =
       (Printf.sprintf "<b>Require</b> <a helm:helm_link=\"href\" href=\"theory:%s.theory\">%s</a>.<br/>"
        (uri_of_dirpath d) (DirPath.to_string d)))
 ;;
+*)
+let print_ref _ = assert false
+let show _ = assert false

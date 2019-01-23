@@ -13,10 +13,10 @@
 (************************************************************************)
 
 (*CSC: tutto da rifare!!! Basarsi su Retyping che e' meno costoso! *)
-type types = {synthesized : Term.types ; expected : Term.types option};;
+type types = {synthesized : Constr.types ; expected : Constr.types option};;
 
 let cprop =
-  Names.make_con
+  Names.Constant.make3
    (Names.MPfile
      (Libnames.dirpath_of_string "CoRN.algebra.CLogic"))
    (Names.DirPath.empty)
@@ -25,8 +25,8 @@ let cprop =
 
 let whd_betadeltaiotacprop env _evar_map ty =
  (*** CProp is made Opaque ***)
- let flags = Closure.RedFlags.red_sub Closure.betadeltaiota (Closure.RedFlags.fCONST cprop) in
- Closure.whd_val (Closure.create_clos_infos flags env) (Closure.inject ty)
+ let flags = CClosure.RedFlags.red_sub CClosure.all (CClosure.RedFlags.fCONST cprop) in
+ CClosure.whd_val (CClosure.create_clos_infos flags env) (CClosure.create_tab ()) (CClosure.inject ty)
 ;;
 
 
@@ -36,6 +36,7 @@ let whd_betadeltaiotacprop env _evar_map ty =
 (*  - both the synthesized and expected types of every   *)
 (*    node are computed (Coscoy's double type inference) *)
 
+(* XXXX
 let assumption_of_judgment env sigma j =
   Typeops.assumption_of_judgment env (Evarutil.j_nf_evar sigma j)
 ;;
@@ -50,21 +51,25 @@ let type_judgment_cprop env sigma j =
     | _ -> None  (* None means the CProp constant *)
 ;;
 
+let error msg =
+ prerr_endline msg ;
+ assert false
+
 let double_type_of env sigma cstr expectedty subterms_to_types =
  (*CSC: the code is inefficient because judgments are created just to be   *)
  (*CSC: destroyed using Environ.j_type. Moreover I am pretty sure that the *)
  (*CSC: functions used do checks that we do not need                       *)
  let rec execute env sigma cstr expectedty =
-  let module T = Term in
+  let module T = Constr in
   let module V = Vars in
   let module E = Environ in
    (* the type part is the synthesized type *)
    let judgement =
-    match T.kind_of_term cstr with
+    match T.kind cstr with
        T.Meta n ->
-        Errors.error
+        error
          "DoubleTypeInference.double_type_of: found a non-instanciated goal"
-    | T.Proj _ -> assert false
+     | T.Proj _ -> assert false
      | T.Evar ((n,l) as ev) ->
         let ty = Unshare.unshare (Evd.existential_type sigma ev) in
         let jty = execute env sigma ty None in
@@ -266,3 +271,6 @@ in
  ignore (execute env sigma cstr expectedty)
  *)
 ;;
+*)
+
+let double_type_of _ = assert false

@@ -13,5 +13,5 @@ let print_xml_term ch env sigma cic =
   Xml.pp_ch xml ch
 ;;
 
-Tacinterp.declare_xml_printer print_xml_term
+Ltac_plugin.Tacinterp.declare_xml_printer print_xml_term
 ;;

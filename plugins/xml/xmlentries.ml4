@@ -14,7 +14,11 @@
 
 (*i camlp4deps: "grammar/grammar.cma" i*)
 
-open Pp
+open Ltac_plugin
+open Pcoq.Prim
+open Stdarg
+
+DECLARE PLUGIN "xml_plugin"
 
 (* File name *)
 
