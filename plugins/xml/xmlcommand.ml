@@ -399,8 +399,9 @@ let print glob_ref kind xml_library_root =
          | Def x -> Some (Mod_subst.force_constr x)
          | OpaqueDef x ->
             (* CSC: always starting from empty_opaquetab may be bad *)
-            Some (Opaqueproof.force_proof Opaqueproof.empty_opaquetab x)
-       in
+            Some (Opaqueproof.force_proof Opaqueproof.empty_opaquetab x) in
+       let val0 = Option.map EConstr.of_constr val0 in
+       let typ = EConstr.of_constr typ in
         Cic2acic.Constant kn,mk_constant_obj id val0 typ variables hyps
 (*
     | Globnames.IndRef (kn,_) ->

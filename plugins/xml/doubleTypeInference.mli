@@ -17,8 +17,8 @@ type types = { synthesized : Constr.types; expected : Constr.types option; }
 val cprop : Names.Constant.t
 
 val whd_betadeltaiotacprop :
-  Environ.env -> Evd.evar_map -> Constr.constr -> Constr.constr
+  Environ.env -> Evd.evar_map -> EConstr.constr -> EConstr.constr
 
 val double_type_of :
-  Environ.env -> Evd.evar_map -> Constr.constr -> Constr.constr option ->
+  Environ.env -> Evd.evar_map -> EConstr.constr -> EConstr.constr option ->
    types Acic.CicHash.t -> unit

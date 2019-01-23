@@ -127,17 +127,16 @@ let token_list_of_path dir id tag =
    List.rev_map Id.to_string (DirPath.repr dirpath) in
   token_list_of_dirpath dir @ [Id.to_string id ^ "." ^ (ext_of_tag tag)]
 
-(*XXX
 let token_list_of_kernel_name tag =
  let id,dir = match tag with
    | Variable kn ->
-       Label.to_id (Names.label kn), Lib.cwd ()
+       Label.to_id (Names.KerName.label kn), Lib.cwd ()
    | Constant con ->
-       Label.to_id (Names.con_label con),
-       Lib.remove_section_part (Globnames.ConstRef con)
+       let _,dir,lab = Names.Constant.repr3 con in
+       Label.to_id lab, dir
    | Inductive kn ->
-       Label.to_id (Names.mind_label kn),
-       Lib.remove_section_part (Globnames.IndRef (kn,0))
+       let _,dir,lab = Names.MutInd.repr3 kn in
+       Label.to_id lab, dir
  in
  token_list_of_path dir id (etag_of_tag tag)
 ;;
@@ -154,18 +153,25 @@ let uri_of_declaration id tag =
 (* Special functions for handling of CCorn's CProp "sort" *)
 
 type sort =
-   Coq_sort of Term.sorts_family
+   Coq_sort of Sorts.family
  | CProp
 ;;
 
 let prerr_endline _ = ();;
 
-let family_of_term ty =
- match Term.kind_of_term ty with
-    Term.Sort s -> Coq_sort (Term.family_of_sort s)
-  | Term.Const _ -> CProp  (* I could check that the constant is CProp *)
-  | _ -> Errors.anomaly (Pp.str "family_of_term")
+let family_of_term sigma ty =
+ match EConstr.kind_of_type sigma ty with
+    Term.SortType s -> Coq_sort (Sorts.family s)
+  | Term.AtomicType _ -> CProp (* I could check that the constant is CProp *)
+  | _ -> CErrors.anomaly (Pp.str "family_of_term")
 ;;
+
+let mk_rel_declaration (name,bo,ty) =
+ match bo with
+    None -> Context.Rel.Declaration.LocalAssum(name,ty)
+  | Some bo -> Context.Rel.Declaration.LocalDef(name,bo,ty)
+
+let push_rel x env = EConstr.push_rel (mk_rel_declaration x) env
 
 module CPropRetyping =
  struct
@@ -173,76 +179,94 @@ module CPropRetyping =
   module V = Vars
 
   let outsort env sigma t =
-   family_of_term (DoubleTypeInference.whd_betadeltaiotacprop env sigma t)
+   family_of_term sigma (DoubleTypeInference.whd_betadeltaiotacprop env sigma t)
 
   let rec subst_type env sigma typ = function
   | [] -> typ
   | h::rest ->
-      match T.kind_of_term (DoubleTypeInference.whd_betadeltaiotacprop env sigma typ) with
-        | T.Prod (na,c1,c2) -> subst_type env sigma (V.subst1 h c2) rest
-        | _ -> Errors.anomaly (Pp.str "Non-functional construction")
+      match EConstr.kind sigma (DoubleTypeInference.whd_betadeltaiotacprop env sigma typ) with
+        | T.Prod (na,c1,c2) -> subst_type env sigma (EConstr.Vars.subst1 h c2) rest
+        | _ -> CErrors.anomaly (Pp.str "Non-functional construction")
 
 
   let sort_of_atomic_type env sigma ft args =
   let rec concl_of_arity env ar =
-    match T.kind_of_term (DoubleTypeInference.whd_betadeltaiotacprop env sigma ar) with
-      | T.Prod (na, t, b) -> concl_of_arity (Environ.push_rel (na,None,t) env) b
-      | T.Sort s -> Coq_sort (T.family_of_sort s)
+    match EConstr.kind sigma (DoubleTypeInference.whd_betadeltaiotacprop env sigma ar) with
+      | T.Prod (na, t, b) -> concl_of_arity (push_rel (na,None,t) env) b
+      | T.Sort s -> Coq_sort (Sorts.family (EConstr.ESorts.kind sigma s))
       | _ -> outsort env sigma (subst_type env sigma ft (Array.to_list args))
   in concl_of_arity env ft
 
 let typeur sigma metamap =
   let rec type_of env cstr=
-    match Term.kind_of_term cstr with
+    match EConstr.kind sigma cstr with
     | T.Proj _ -> assert false
+(*
     | T.Meta n ->
-          (try T.strip_outer_cast (Int.List.assoc n metamap)
-           with Not_found -> Errors.anomaly ~label:"type_of" (Pp.str "this is not a well-typed term"))
+          (try Termops.strip_outer_cast (Int.List.assoc n metamap)
+           with Not_found -> CErrors.anomaly ~label:"type_of" (Pp.str "this is not a well-typed term"))
+*)
     | T.Rel n ->
-        let (_,_,ty) = Environ.lookup_rel n env in
-        V.lift n ty
+        let ty = Context.Rel.Declaration.get_type (EConstr.lookup_rel n env) in
+        EConstr.Vars.lift n ty
+(*
     | T.Var id ->
         (try
-          let (_,_,ty) = Environ.lookup_named id env in
-          ty
+          Context.Named.Declaration.get_type (Environ.lookup_named id env)
         with Not_found ->
-          Errors.anomaly ~label:"type_of" (str "variable " ++ Id.print id ++ str " unbound"))
+          CErrors.anomaly ~label:"type_of" (str "variable " ++ Id.print id ++ str " unbound"))
+*)
+(*
     | T.Const c -> Typeops.type_of_constant_in env c
+*)
+(*
     | T.Evar ev -> Evd.existential_type sigma ev
+*)
+(*
     | T.Ind ind -> Inductiveops.type_of_inductive env ind
     | T.Construct cstr -> Inductiveops.type_of_constructor env cstr
+*)
+(*XXX
     | T.Case (_,p,c,lf) ->
         let Inductiveops.IndType(_,realargs) =
           try Inductiveops.find_rectype env sigma (type_of env c)
-          with Not_found -> Errors.anomaly ~label:"type_of" (Pp.str "Bad recursive type") in
+          with Not_found -> CErrors.anomaly ~label:"type_of" (Pp.str "Bad recursive type") in
         let t = Reductionops.whd_beta sigma (T.applist (p, realargs)) in
         (match Term.kind_of_term (DoubleTypeInference.whd_betadeltaiotacprop env sigma (type_of env t)) with
           | T.Prod _ -> Reductionops.whd_beta sigma (T.applist (t, [c]))
           | _ -> t)
+*)
     | T.Lambda (name,c1,c2) ->
-          T.mkProd (name, c1, type_of (Environ.push_rel (name,None,c1) env) c2)
+          EConstr.mkProd (name, c1, type_of (push_rel (name,None,c1) env) c2)
+(*
     | T.LetIn (name,b,c1,c2) ->
-         V.subst1 b (type_of (Environ.push_rel (name,Some b,c1) env) c2)
+         V.subst1 b (type_of (push_rel (name,Some b,c1) env) c2)
+*)
     | T.Fix ((_,i),(_,tys,_)) -> tys.(i)
     | T.CoFix (i,(_,tys,_)) -> tys.(i)
+(*
     | T.App(f,args)->
-        T.strip_outer_cast
+        Termops.strip_outer_cast sigma
           (subst_type env sigma (type_of env f) (Array.to_list args))
+*)
     | T.Cast (c,_, t) -> t
+(*
     | T.Sort _ | T.Prod _ ->
        match sort_of env cstr with
           Coq_sort T.InProp -> T.mkProp
         | Coq_sort T.InSet -> T.mkSet
         | Coq_sort T.InType -> T.mkType Univ.type1_univ (* ERROR HERE *)
         | CProp -> T.mkConst DoubleTypeInference.cprop
+*)
 
+(*
   and sort_of env t =
     match Term.kind_of_term t with
-    | T.Cast (c,_, s) when T.isSort s -> family_of_term s
+    | T.Cast (c,_, s) when T.isSort s -> family_of_term sigma s
     | T.Sort (T.Prop c) -> Coq_sort T.InType
     | T.Sort (T.Type u) -> Coq_sort T.InType
     | T.Prod (name,t,c2) ->
-       (match sort_of env t,sort_of (Environ.push_rel (name,None,t) env) c2 with
+       (match sort_of env t,sort_of (push_rel (name,None,t) env) c2 with
           | _, (Coq_sort T.InProp as s) -> s
           | Coq_sort T.InProp, (Coq_sort T.InSet as s)
           | Coq_sort T.InSet, (Coq_sort T.InSet as s) -> s
@@ -255,22 +279,23 @@ let typeur sigma metamap =
           | _, (CProp as s) -> s)
     | T.App(f,args) -> sort_of_atomic_type env sigma (type_of env f) args
     | T.Lambda _ | T.Fix _ | T.Construct _ ->
-        Errors.anomaly ~label:"sort_of" (Pp.str "Not a type (1)")
+        CErrors.anomaly ~label:"sort_of" (Pp.str "Not a type (1)")
     | _ -> outsort env sigma (type_of env t)
 
   and sort_family_of env t =
     match T.kind_of_term t with
-    | T.Cast (c,_, s) when T.isSort s -> family_of_term s
+    | T.Cast (c,_, s) when T.isSort s -> family_of_term sigma s
     | T.Sort (T.Prop c) -> Coq_sort T.InType
     | T.Sort (T.Type u) -> Coq_sort T.InType
-    | T.Prod (name,t,c2) -> sort_family_of (Environ.push_rel (name,None,t) env) c2
+    | T.Prod (name,t,c2) -> sort_family_of (push_rel (name,None,t) env) c2
     | T.App(f,args) ->
        sort_of_atomic_type env sigma (type_of env f) args
     | T.Lambda _ | T.Fix _ | T.Construct _ ->
-        Errors.anomaly ~label:"sort_of" (Pp.str "Not a type (1)")
+        CErrors.anomaly ~label:"sort_of" (Pp.str "Not a type (1)")
     | _ -> outsort env sigma (type_of env t)
+*)
 
-  in type_of, sort_of, sort_family_of
+  in type_of(*XXX, sort_of, sort_family_of*), (), (fun _ -> assert false)
 
   let get_type_of env sigma c = let f,_,_ = typeur sigma [] in f env c
   let get_sort_family_of env sigma c = let _,_,f = typeur sigma [] in f env c
@@ -284,7 +309,7 @@ let get_sort_family_of env evar_map ty =
 
 let type_as_sort env evar_map ty =
 (* CCorn code *)
- family_of_term (DoubleTypeInference.whd_betadeltaiotacprop env evar_map ty)
+ family_of_term evar_map (DoubleTypeInference.whd_betadeltaiotacprop env evar_map ty)
 ;;
 
 let is_a_Prop =
@@ -317,6 +342,7 @@ let fresh_id seed ids_to_terms constr_to_ids ids_to_father_ids =
 
 let source_id_of_id id = "#source#" ^ id;;
 
+(*
 let acic_of_cic_context' computeinnertypes seed ids_to_terms constr_to_ids
  ids_to_father_ids ids_to_inner_sorts ids_to_inner_types
  ?(fake_dependent_products=false) env idrefs evar_map t expectedty
@@ -513,7 +539,7 @@ print_endline "PASSATO" ; flush stdout ;
                add_inner_type fresh_id'' ;
               Acic.AEvar
                (fresh_id'', n, Array.to_list (Array.map (aux' env idrefs) l))
-           | Term.Meta _ -> Errors.anomaly (Pp.str "Meta met during exporting to XML")
+           | Term.Meta _ -> CErrors.anomaly (Pp.str "Meta met during exporting to XML")
            | Term.Sort s -> Acic.ASort (fresh_id'', s)
            | Term.Cast (v,_, t) ->
               Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
@@ -552,7 +578,7 @@ print_endline "PASSATO" ; flush stdout ;
                     passed_lambdas_or_prods_or_letins
                    else [])
                in
-                let new_env = Environ.push_rel (n', None, s) env in
+                let new_env = push_rel (n', None, s) env in
                 let new_idrefs = fresh_id''::idrefs in
                  (match Term.kind_of_term t with
                      Term.Prod _ ->
@@ -589,7 +615,7 @@ print_endline "PASSATO" ; flush stdout ;
                   (if father_is_lambda then
                     passed_lambdas_or_prods_or_letins
                    else []) in
-                let new_env = Environ.push_rel (n', None, s) env in
+                let new_env = push_rel (n', None, s) env in
                 let new_idrefs = fresh_id''::idrefs in
                  (match Term.kind_of_term t with
                      Term.Lambda _ ->
@@ -639,7 +665,7 @@ print_endline "PASSATO" ; flush stdout ;
                   (if father_is_letin then
                     passed_lambdas_or_prods_or_letins
                    else []) in
-                let new_env = Environ.push_rel (n', Some s, t) env in
+                let new_env = push_rel (n', Some s, t) env in
                 let new_idrefs = fresh_id''::idrefs in
                  (match Term.kind_of_term d with
                      Term.LetIn _ ->
@@ -786,6 +812,7 @@ print_endline "PASSATO" ; flush stdout ;
     in
      aux computeinnertypes None [] env idrefs t
 ;;
+*)
 
 (* Obsolete [HH 1/2009]
 let acic_of_cic_context metasenv context t =
@@ -800,6 +827,8 @@ let acic_of_cic_context metasenv context t =
    ids_to_terms, ids_to_father_ids, ids_to_inner_sorts, ids_to_inner_types
 ;;
 *)
+
+let acic_of_cic_context' _ = assert false
 
 let acic_object_of_cic_object sigma obj =
   let ids_to_terms = Hashtbl.create 503 in
@@ -866,7 +895,7 @@ let acic_object_of_cic_object sigma obj =
                    match decl_or_def with
                        Acic.Decl t ->
                         let final_env,final_idrefs,atl =
-                         aux (Environ.push_rel (Names.Name n,None,t) env)
+                         aux (push_rel (Names.Name n,None,t) env)
                           new_idrefs tl
                         in
                          let at =
@@ -876,7 +905,7 @@ let acic_object_of_cic_object sigma obj =
                      | Acic.Def (t,ty) ->
                         let final_env,final_idrefs,atl =
                          aux
-                          (Environ.push_rel (Names.Name n,Some t,ty) env)
+                          (push_rel (Names.Name n,Some t,ty) env)
                            new_idrefs tl
                         in
                          let at =
@@ -904,7 +933,7 @@ let acic_object_of_cic_object sigma obj =
        let env' =
         List.fold_right
          (fun (name,_,arity,_) env ->
-           Environ.push_rel (Names.Name name, None, arity) env
+           push_rel (Names.Name name, None, arity) env
          ) (List.rev tys) env in
        let idrefs = List.map (function _ -> gen_id seed) tys in
        let atys =
@@ -928,13 +957,4 @@ let acic_object_of_cic_object sigma obj =
    in
     aobj,ids_to_terms,constr_to_ids,ids_to_father_ids,ids_to_inner_sorts,
      ids_to_inner_types,ids_to_conjectures,ids_to_hypotheses
-;;
-*)
-let uri_of_kernel_name _ = assert false
-let source_id_of_id _ = assert false
-let token_list_of_kernel_name _ = assert false
-let acic_object_of_cic_object _ = assert false
-let acic_of_cic_context' _ = assert false
-type anntypes =
- {annsynthesized : Acic.aconstr ; annexpected : Acic.aconstr option}
 ;;

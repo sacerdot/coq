@@ -23,10 +23,17 @@ let cprop =
    (Names.Label.make "CProp")
 ;;
 
+(*XXX constr code
 let whd_betadeltaiotacprop env _evar_map ty =
  (*** CProp is made Opaque ***)
  let flags = CClosure.RedFlags.red_sub CClosure.all (CClosure.RedFlags.fCONST cprop) in
  CClosure.whd_val (CClosure.create_clos_infos flags env) (CClosure.create_tab ()) (CClosure.inject ty)
+;;
+*)
+let whd_betadeltaiotacprop env evar_map ty =
+ (*** CProp is made Opaque ***)
+ let flags = CClosure.RedFlags.red_sub CClosure.all (CClosure.RedFlags.fCONST cprop) in
+ Reductionops.clos_whd_flags flags env evar_map ty
 ;;
 
 

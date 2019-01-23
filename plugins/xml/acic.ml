@@ -13,7 +13,7 @@
 (************************************************************************)
 
 open Names
-open Constr
+open EConstr
 
 (* Maps fron \em{unshared} [constr] to ['a]. *)
 module CicHash =
