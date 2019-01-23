@@ -524,19 +524,18 @@ print_endline "PASSATO" ; flush stdout ;
           (* Now that we have all the auxiliary functions we  *)
           (* can finally proceed with the main case analysis. *)
           match EConstr.kind evar_map tt with
-(*
-          | Term.Proj _ -> assert false
-          | Term.Rel n ->
+          | Constr.Proj _ -> assert false
+          | Constr.Rel n ->
               let id =
-               match List.nth (Environ.rel_context env) (n - 1) with
-                  (Names.Name id,_,_)   -> id
-                | (Names.Anonymous,_,_) -> Nameops.make_ident "_" None
+               match Context.Rel.Declaration.get_name (List.nth (Environ.rel_context env) (n - 1)) with
+                  Names.Name id   -> id
+                | Names.Anonymous -> Nameops.make_ident "_" None
               in
                Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
                if is_a_Prop innersort  && expected_available then
                 add_inner_type fresh_id'' ;
                Acic.ARel (fresh_id'', n, List.nth idrefs (n-1), id)
-           | Term.Var id ->
+           | Constr.Var id ->
 	      let pvars = Termops.ids_of_named_context (Environ.named_context env) in
 	      let pvars = List.map Id.to_string pvars in
               let path = get_uri_of_var (Id.to_string id) pvars in
@@ -545,21 +544,20 @@ print_endline "PASSATO" ; flush stdout ;
                 add_inner_type fresh_id'' ;
                Acic.AVar
                 (fresh_id'', path ^ "/" ^ (Id.to_string id) ^ ".var")
-           | Term.Evar (n,l) ->
+           | Constr.Evar (n,l) ->
               Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
               if is_a_Prop innersort  && expected_available then
                add_inner_type fresh_id'' ;
               Acic.AEvar
                (fresh_id'', n, Array.to_list (Array.map (aux' env idrefs) l))
-           | Term.Meta _ -> CErrors.anomaly (Pp.str "Meta met during exporting to XML")
-*)
+           | Constr.Meta _ -> CErrors.anomaly (Pp.str "Meta met during exporting to XML")
            | Constr.Sort s -> Acic.ASort (fresh_id'', EConstr.ESorts.kind evar_map s)
-(*
-           | Term.Cast (v,_, t) ->
+           | Constr.Cast (v,_, t) ->
               Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
               if is_a_Prop innersort then
                add_inner_type fresh_id'' ;
               Acic.ACast (fresh_id'', aux' env idrefs v, aux' env idrefs t)
+(*
            | Term.Prod (n,s,t) ->
               let n' =
                match n with
@@ -687,7 +685,8 @@ print_endline "PASSATO" ; flush stdout ;
                        new_env new_idrefs d
                    | _ -> Acic.ALetIns
                            (new_passed_letins, aux' new_env new_idrefs d))
-           | Term.App (h,t) ->
+*)
+           | Constr.App (h,t) ->
               Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
               if is_a_Prop innersort then
                add_inner_type fresh_id'' ;
@@ -714,7 +713,7 @@ print_endline "PASSATO" ; flush stdout ;
                 explicit_substitute_and_eta_expand_if_required h
                  (Array.to_list t) t'
                  compute_result_if_eta_expansion_not_required
-           | Term.Const (kn,u) ->
+           | Constr.Const (kn,u) ->
               Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
               if is_a_Prop innersort  && expected_available then
                add_inner_type fresh_id'' ;
@@ -725,7 +724,6 @@ print_endline "PASSATO" ; flush stdout ;
                 explicit_substitute_and_eta_expand_if_required tt []
                  (List.map snd subst')
                  compute_result_if_eta_expansion_not_required
-*)
            | Constr.Ind ((kn,i),u) ->
               let compute_result_if_eta_expansion_not_required _ _ =
                Acic.AInd (fresh_id'', subst, (uri_of_kernel_name (Inductive kn)), i)
