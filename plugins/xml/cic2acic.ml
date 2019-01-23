@@ -216,39 +216,30 @@ let typeur sigma metamap =
         with Not_found ->
           CErrors.anomaly ~label:"type_of" (str "variable " ++ Id.print id ++ str " unbound"))
 *)
-(*
-    | T.Const c -> Typeops.type_of_constant_in env c
-*)
-(*
+    | T.Const (c,u) ->
+       EConstr.of_constr (Typeops.type_of_constant_in env (c, EConstr.EInstance.kind sigma u))
     | T.Evar ev -> Evd.existential_type sigma ev
-*)
     | T.Ind (ind,u) ->
        EConstr.of_constr (Inductiveops.type_of_inductive env (ind, EConstr.EInstance.kind sigma u))
     | T.Construct (cstr,u) ->
        EConstr.of_constr (Inductiveops.type_of_constructor env (cstr, EConstr.EInstance.kind sigma u))
-(*XXX
     | T.Case (_,p,c,lf) ->
         let Inductiveops.IndType(_,realargs) =
           try Inductiveops.find_rectype env sigma (type_of env c)
           with Not_found -> CErrors.anomaly ~label:"type_of" (Pp.str "Bad recursive type") in
-        let t = Reductionops.whd_beta sigma (T.applist (p, realargs)) in
-        (match Term.kind_of_term (DoubleTypeInference.whd_betadeltaiotacprop env sigma (type_of env t)) with
-          | T.Prod _ -> Reductionops.whd_beta sigma (T.applist (t, [c]))
+        let t = Reductionops.whd_beta sigma (EConstr.applist (p, realargs)) in
+        (match EConstr.kind sigma (DoubleTypeInference.whd_betadeltaiotacprop env sigma (type_of env t)) with
+          | T.Prod _ -> Reductionops.whd_beta sigma (EConstr.applist (t, [c]))
           | _ -> t)
-*)
     | T.Lambda (name,c1,c2) ->
           EConstr.mkProd (name, c1, type_of (push_rel (name,None,c1) env) c2)
-(*
     | T.LetIn (name,b,c1,c2) ->
-         V.subst1 b (type_of (push_rel (name,Some b,c1) env) c2)
-*)
+         EConstr.Vars.subst1 b (type_of (push_rel (name,Some b,c1) env) c2)
     | T.Fix ((_,i),(_,tys,_)) -> tys.(i)
     | T.CoFix (i,(_,tys,_)) -> tys.(i)
-(*
     | T.App(f,args)->
         Termops.strip_outer_cast sigma
           (subst_type env sigma (type_of env f) (Array.to_list args))
-*)
     | T.Cast (c,_, t) -> t
     | T.Sort _ | T.Prod _ ->
        match sort_of env sigma cstr with
@@ -755,7 +746,8 @@ print_endline "PASSATO" ; flush stdout ;
                Acic.ACase
                 (fresh_id'', (uri_of_kernel_name (Inductive kn)), i,
                   aux' env idrefs ty, aux' env idrefs term, a')
-           | Term.Fix ((ai,i),(f,t,b)) ->
+*)
+           | Constr.Fix ((ai,i),(f,t,b)) ->
               Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
               if is_a_Prop innersort then add_inner_type fresh_id'' ;
               let fresh_idrefs =
@@ -767,9 +759,9 @@ print_endline "PASSATO" ; flush stdout ;
                 let ids = ref (Termops.ids_of_context env) in
                  Array.map
                   (function
-                      Names.Anonymous -> Errors.error "Anonymous fix function met"
+                      Names.Anonymous -> error "Anonymous fix function met"
                     | Names.Name id as n ->
-                       let res = Names.Name (Namegen.next_name_away n !ids) in
+                       let res = Names.Name (Namegen.next_name_away n (Names.Id.Set.of_seq (List.to_seq !ids))) in
                         ids := id::!ids ;
                         res
                  ) f
@@ -780,16 +772,16 @@ print_endline "PASSATO" ; flush stdout ;
                     let fi' =
                      match fi with
                         Names.Name fi -> fi
-                      | Names.Anonymous -> Errors.error "Anonymous fix function met"
+                      | Names.Anonymous -> error "Anonymous fix function met"
                     in
                      (id, fi', ai,
                       aux' env idrefs ti,
-                      aux' (Environ.push_rec_types (f',t,b) env) new_idrefs bi)::i)
+                      aux' (EConstr.push_rec_types (f',t,b) env) new_idrefs bi)::i)
                   (Array.mapi
                    (fun j x -> (fresh_idrefs.(j),x,t.(j),b.(j),ai.(j))) f'
                   ) []
                  )
-           | Term.CoFix (i,(f,t,b)) ->
+           | Constr.CoFix (i,(f,t,b)) ->
               Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
               if is_a_Prop innersort then add_inner_type fresh_id'' ;
               let fresh_idrefs =
@@ -801,9 +793,9 @@ print_endline "PASSATO" ; flush stdout ;
                 let ids = ref (Termops.ids_of_context env) in
                  Array.map
                   (function
-                      Names.Anonymous -> Errors.error "Anonymous fix function met"
+                      Names.Anonymous -> error "Anonymous fix function met"
                     | Names.Name id as n ->
-                       let res = Names.Name (Namegen.next_name_away n !ids) in
+                       let res = Names.Name (Namegen.next_name_away n (Names.Id.Set.of_seq (List.to_seq !ids))) in
                         ids := id::!ids ;
                         res
                  ) f
@@ -814,16 +806,15 @@ print_endline "PASSATO" ; flush stdout ;
                     let fi' =
                      match fi with
                         Names.Name fi -> fi
-                      | Names.Anonymous -> Errors.error "Anonymous fix function met"
+                      | Names.Anonymous -> error "Anonymous fix function met"
                     in
                      (id, fi',
                       aux' env idrefs ti,
-                      aux' (Environ.push_rec_types (f',t,b) env) new_idrefs bi)::i)
+                      aux' (EConstr.push_rec_types (f',t,b) env) new_idrefs bi)::i)
                   (Array.mapi
                     (fun j x -> (fresh_idrefs.(j),x,t.(j),b.(j)) ) f'
                   ) []
                  )
-*)
     in
      aux computeinnertypes None [] env idrefs t
 ;;
