@@ -139,6 +139,17 @@ let update_tables c =
   Heads.declare_head (EvalConstRef c);
   Notation.declare_ref_arguments_scope Evd.empty (ConstRef c)
 
+(** XML output hooks *)
+
+let (f_xml_declare_variable, xml_declare_variable) = Hook.make ~default:ignore ()
+let (f_xml_declare_constant, xml_declare_constant) = Hook.make ~default:ignore ()
+let (f_xml_declare_inductive, xml_declare_inductive) = Hook.make ~default:ignore ()
+
+let if_xml f x = if !Flags.xml_export then f x else ()
+
+(** End of XML output hooks *)
+
+
 let register_side_effect (c, role) =
   let o = inConstant {
     cst_decl = None;
@@ -149,6 +160,7 @@ let register_side_effect (c, role) =
   let id = Label.to_id (pi3 (Constant.repr3 c)) in
   ignore(add_leaf id o);
   update_tables c;
+  let () = if_xml (Hook.get f_xml_declare_constant) (InternalTacticRequest, c) in
   match role with
   | Subproof -> ()
   | Schema (ind, kind) -> !declare_scheme kind [|ind,c|]
@@ -198,7 +210,9 @@ let declare_constant ?(internal = UserIndividualRequest) ?(local = false) id ?(e
     cst_kind = kind;
     cst_locl = local;
   } in
-  declare_constant_common id cst
+  let kn = declare_constant_common id cst in
+  let () = if_xml (Hook.get f_xml_declare_constant) (internal, kn) in
+  kn
 
 let declare_definition ?(internal=UserIndividualRequest)
   ?(opaque=false) ?(kind=Decl_kinds.Definition) ?(local = false)
@@ -279,6 +293,7 @@ let declare_variable id obj =
   declare_var_implicits id;
   Notation.declare_ref_arguments_scope Evd.empty (VarRef id);
   Heads.declare_head (EvalVarRef id);
+  if_xml (Hook.get f_xml_declare_variable) oname;
   oname
 
 (** Declaration of inductive blocks *)
@@ -431,6 +446,7 @@ let declare_mind mie =
   let isprim = declare_projections mie.mind_entry_universes mind in
   declare_mib_implicits mind;
   declare_inductive_argument_scopes mind mie;
+  if_xml (Hook.get f_xml_declare_inductive) (isprim,oname);
   oname, isprim
 
 (* Declaration messages *)

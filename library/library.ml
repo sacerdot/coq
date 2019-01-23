@@ -550,6 +550,8 @@ let in_require : require_obj -> obj =
 (* Require libraries, import them if [export <> None], mark them for export
    if [export = Some true] *)
 
+let (f_xml_require, xml_require) = Hook.make ~default:ignore ()
+
 let warn_require_in_module =
   CWarnings.create ~name:"require-in-module" ~category:"deprecated"
                    (fun () -> strbrk "Require inside a module is" ++
@@ -571,6 +573,7 @@ let require_library_from_dirpath modrefl export =
       end
     else
       add_anonymous_leaf (in_require (needed,modrefl,export));
+    if !Flags.xml_export then List.iter (Hook.get f_xml_require) modrefl;
   ()
 
 (* the function called by Vernacentries.vernac_import *)

@@ -8,6 +8,11 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+
+(** Set XML hooks *)
+val xml_start_library : (unit -> unit) Hook.t
+val xml_end_library   : (unit -> unit) Hook.t
+
 (** Definition of custom toplevels.
     [init] is used to do custom command line argument parsing.
     [run] launches a custom toplevel.

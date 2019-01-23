@@ -185,6 +185,10 @@ let ensure_exists f =
   if not (Sys.file_exists f) then
     fatal_error (hov 0 (str "Can't find file" ++ spc () ++ str f))
 
+(* XML output hooks *)
+let (f_xml_start_library, xml_start_library) = Hook.make ~default:ignore ()
+let (f_xml_end_library, xml_end_library) = Hook.make ~default:ignore ()
+
 (* Compile a vernac file *)
 let compile cur_feeder opts ~echo ~f_in ~f_out =
   let open Vernac.State in
@@ -228,6 +232,7 @@ let compile cur_feeder opts ~echo ~f_in ~f_out =
         ~v_file:long_f_dot_v);
       Dumpglob.start_dump_glob ~vfile:long_f_dot_v ~vofile:long_f_dot_vo;
       Dumpglob.dump_string ("F" ^ Names.DirPath.to_string ldir ^ "\n");
+      if !Flags.xml_export then Hook.get f_xml_start_library ();
       let wall_clock1 = Unix.gettimeofday () in
       let state = Vernac.load_vernac ~echo ~check:true ~interactive:false ~state long_f_dot_v in
       let _doc = Stm.join ~doc:state.doc in
@@ -237,6 +242,7 @@ let compile cur_feeder opts ~echo ~f_in ~f_out =
       Aux_file.record_in_aux_at "vo_compile_time"
         (Printf.sprintf "%.3f" (wall_clock2 -. wall_clock1));
       Aux_file.stop_aux_file ();
+      if !Flags.xml_export then Hook.get f_xml_end_library ();
       Dumpglob.end_dump_glob ()
 
   | BuildVio ->

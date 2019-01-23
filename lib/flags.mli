@@ -52,6 +52,11 @@ val in_toplevel : bool ref
 
 val profile : bool
 
+(** XML exportation flags *)
+
+(* -xml option: xml hooks will be called *)
+val xml_export : bool ref
+
 (* development flag to detect race conditions, it should go away. *)
 val we_are_parsing : bool ref
 

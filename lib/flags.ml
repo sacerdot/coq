@@ -57,6 +57,9 @@ let in_toplevel = ref false
 
 let profile = false
 
+let xml_export = ref false
+
+
 let raw_print = ref false
 
 let we_are_parsing = ref false

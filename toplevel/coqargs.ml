@@ -507,6 +507,8 @@ let parse_args arglist : coq_cmdopts * string list =
         CWarnings.set_flags (CWarnings.normalize_flags_string w);
         oval
 
+    |"-xml" -> Flags.xml_export := true ; oval
+
     |"-o" -> { oval with compilation_output_name = Some (next()) }
 
     (* Options with zero arg *)
