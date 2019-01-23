@@ -346,6 +346,17 @@ let fresh_id seed ids_to_terms constr_to_ids ids_to_father_ids =
 
 let source_id_of_id id = "#source#" ^ id;;
 
+(* lamn n [xn:Tn;..;x1:T1;Gamma] b = [x1:T1]..[xn:Tn]b *)
+let lamn n env b =
+  let rec lamrec = function
+    | (0, env, b)        -> b
+    | (n, ((v,t)::l), b) -> lamrec (n-1,  l, EConstr.mkLambda (v,t,b))
+    | _ -> assert false
+  in
+  lamrec (n,env,b)
+
+let applistc f l = EConstr.mkApp (f, Array.of_list l)
+
 let acic_of_cic_context' computeinnertypes seed ids_to_terms constr_to_ids
  ids_to_father_ids ids_to_inner_sorts ids_to_inner_types
  ?(fake_dependent_products=false) env idrefs evar_map t expectedty
@@ -434,7 +445,6 @@ print_endline "PASSATO" ; flush stdout ;
           | Some ainnertypes -> Hashtbl.add ids_to_inner_types id ainnertypes
         in
 
-assert false(*
          (* explicit_substitute_and_eta_expand_if_required h t t'         *)
          (* where [t] = [] and [tt] = [h]{[t']} ("{.}" denotes explicit   *)
          (* named substitution) or [tt] = (App [h]::[t]) (and [t'] = [])  *)
@@ -450,7 +460,7 @@ assert false(*
           let subst,residual_args,uninst_vars =
            let variables,basedir =
              try
-               let g = Globnames.global_of_constr h in
+               let g,_(*XXX???*) = Termops.global_of_constr evar_map h in
                let sp =
                 match g with
                    Globnames.ConstructRef ((induri,_),_)
@@ -494,17 +504,19 @@ assert false(*
             if uninst_vars_length > 0 then
              (* Not enough arguments provided. We must eta-expand! *)
              let un_args,_ =
-              Term.decompose_prod_n uninst_vars_length
-               (CPropRetyping.get_type_of env evar_map tt)
-             in
+              EConstr.decompose_prod_n_assum evar_map uninst_vars_length
+               (CPropRetyping.get_type_of env evar_map tt) in
+             let un_args =
+              List.map
+               (fun x -> Context.Rel.Declaration.(get_name x,get_type x)) un_args in
               let eta_expanded =
                let arguments =
-                List.map (Vars.lift uninst_vars_length) t @
+                List.map (EConstr.Vars.lift uninst_vars_length) t @
                  Termops.rel_list 0 uninst_vars_length
                in
                 Unshare.unshare
-                 (Term.lamn uninst_vars_length un_args
-                  (Term.applistc h arguments))
+                 (lamn uninst_vars_length un_args
+                  (applistc h arguments))
               in
                DoubleTypeInference.double_type_of env evar_map eta_expanded
                 None terms_to_types ;
@@ -513,6 +525,7 @@ assert false(*
             else
              compute_result_if_eta_expansion_not_required subst residual_args
          in
+assert false(*
 
           (* Now that we have all the auxiliary functions we  *)
           (* can finally proceed with the main case analysis. *)
