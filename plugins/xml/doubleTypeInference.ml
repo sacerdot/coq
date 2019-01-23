@@ -13,7 +13,7 @@
 (************************************************************************)
 
 (*CSC: tutto da rifare!!! Basarsi su Retyping che e' meno costoso! *)
-type types = {synthesized : Constr.types ; expected : Constr.types option};;
+type types = {synthesized : EConstr.types ; expected : EConstr.types option};;
 
 let cprop =
   Names.Constant.make3
@@ -280,4 +280,4 @@ in
 ;;
 *)
 
-let double_type_of _ = assert false
+let double_type_of _env _sigma _cstr _expectedty _subterms_to_types = ()

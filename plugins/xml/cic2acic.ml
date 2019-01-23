@@ -222,10 +222,10 @@ let typeur sigma metamap =
 (*
     | T.Evar ev -> Evd.existential_type sigma ev
 *)
-(*
-    | T.Ind ind -> Inductiveops.type_of_inductive env ind
-    | T.Construct cstr -> Inductiveops.type_of_constructor env cstr
-*)
+    | T.Ind (ind,u) ->
+       EConstr.of_constr (Inductiveops.type_of_inductive env (ind, EConstr.EInstance.kind sigma u))
+    | T.Construct (cstr,u) ->
+       EConstr.of_constr (Inductiveops.type_of_constructor env (cstr, EConstr.EInstance.kind sigma u))
 (*XXX
     | T.Case (_,p,c,lf) ->
         let Inductiveops.IndType(_,realargs) =
@@ -281,24 +281,28 @@ let typeur sigma metamap =
     | T.Lambda _ | T.Fix _ | T.Construct _ ->
         CErrors.anomaly ~label:"sort_of" (Pp.str "Not a type (1)")
     | _ -> outsort env sigma (type_of env t)
+*)
 
-  and sort_family_of env t =
-    match T.kind_of_term t with
-    | T.Cast (c,_, s) when T.isSort s -> family_of_term sigma s
-    | T.Sort (T.Prop c) -> Coq_sort T.InType
-    | T.Sort (T.Type u) -> Coq_sort T.InType
-    | T.Prod (name,t,c2) -> sort_family_of (push_rel (name,None,t) env) c2
+  and sort_family_of env evar_map t =
+    match EConstr.kind evar_map t with
+    | T.Cast (c,_, s) when EConstr.isSort evar_map s ->
+       family_of_term sigma s
+    | T.Sort s ->
+       (match EConstr.ESorts.kind evar_map s with
+           Sorts.Prop -> Coq_sort Sorts.InType (*CSC: ???*)
+         | Sorts.Set -> Coq_sort Sorts.InType (*CSC: ???*)
+         | Sorts.Type u -> Coq_sort Sorts.InType)
+    | T.Prod (name,t,c2) -> sort_family_of (push_rel (name,None,t) env) evar_map c2
     | T.App(f,args) ->
        sort_of_atomic_type env sigma (type_of env f) args
     | T.Lambda _ | T.Fix _ | T.Construct _ ->
         CErrors.anomaly ~label:"sort_of" (Pp.str "Not a type (1)")
     | _ -> outsort env sigma (type_of env t)
-*)
 
-  in type_of(*XXX, sort_of, sort_family_of*), (), (fun _ -> assert false)
+  in type_of,()(*XXX sort_of*), sort_family_of
 
   let get_type_of env sigma c = let f,_,_ = typeur sigma [] in f env c
-  let get_sort_family_of env sigma c = let _,_,f = typeur sigma [] in f env c
+  let get_sort_family_of env sigma c = let _,_,f = typeur sigma [] in f env sigma c
 
  end
 ;;
@@ -342,7 +346,6 @@ let fresh_id seed ids_to_terms constr_to_ids ids_to_father_ids =
 
 let source_id_of_id id = "#source#" ^ id;;
 
-(*
 let acic_of_cic_context' computeinnertypes seed ids_to_terms constr_to_ids
  ids_to_father_ids ids_to_inner_sorts ids_to_inner_types
  ?(fake_dependent_products=false) env idrefs evar_map t expectedty
@@ -373,16 +376,16 @@ let acic_of_cic_context' computeinnertypes seed ids_to_terms constr_to_ids
          if false (*computeinnertypes*) then
 try
           Acic.CicHash.find terms_to_types tt
-with e when Errors.noncritical e ->
+with e when CErrors.noncritical e ->
 (*CSC: Warning: it really happens, for example in Ring_theory!!! *)
-Pp.msg_debug (Pp.(++) (Pp.str "BUG: this subterm was not visited during the double-type-inference: ") (Printer.pr_lconstr tt)) ; assert false
+Feedback.msg_debug (Pp.(++) (Pp.str "BUG: this subterm was not visited during the double-type-inference: ") (Printer.pr_econstr_env env evar_map tt)) ; assert false
          else
           (* We are already in an inner-type and Coscoy's double *)
           (* type inference algorithm has not been applied.      *)
           (* We need to refresh the universes because we are doing *)
           (* type inference on an already inferred type.           *)
           {DoubleTypeInference.synthesized =
-            Reductionops.nf_beta evar_map
+            Reductionops.nf_beta env evar_map
              (CPropRetyping.get_type_of env evar_map
               ((* Termops.refresh_universes *) tt)) ;
            DoubleTypeInference.expected = None}
@@ -431,6 +434,7 @@ print_endline "PASSATO" ; flush stdout ;
           | Some ainnertypes -> Hashtbl.add ids_to_inner_types id ainnertypes
         in
 
+assert false(*
          (* explicit_substitute_and_eta_expand_if_required h t t'         *)
          (* where [t] = [] and [tt] = [h]{[t']} ("{.}" denotes explicit   *)
          (* named substitution) or [tt] = (App [h]::[t]) (and [t'] = [])  *)
@@ -809,10 +813,10 @@ print_endline "PASSATO" ; flush stdout ;
                     (fun j x -> (fresh_idrefs.(j),x,t.(j),b.(j)) ) f'
                   ) []
                  )
+*)
     in
      aux computeinnertypes None [] env idrefs t
 ;;
-*)
 
 (* Obsolete [HH 1/2009]
 let acic_of_cic_context metasenv context t =
@@ -827,8 +831,6 @@ let acic_of_cic_context metasenv context t =
    ids_to_terms, ids_to_father_ids, ids_to_inner_sorts, ids_to_inner_types
 ;;
 *)
-
-let acic_of_cic_context' _ = assert false
 
 let acic_object_of_cic_object sigma obj =
   let ids_to_terms = Hashtbl.create 503 in

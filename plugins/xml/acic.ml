@@ -19,7 +19,7 @@ open EConstr
 module CicHash =
  Hashtbl.Make
   (struct
-    type t = Constr.constr
+    type t = constr
     let equal = (==)
     let hash = Hashtbl.hash
    end)
