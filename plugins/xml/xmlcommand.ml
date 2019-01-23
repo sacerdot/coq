@@ -243,8 +243,6 @@ let mk_constant_obj id bo ty variables hyps =
 ;;
 
 let mk_inductive_obj sp mib packs variables nparams hyps finite =
-assert false
-(*
   let hyps = string_list_of_named_context_list hyps in
   let params = filter_params variables hyps in
 (*  let nparams = extract_nparams packs in *)
@@ -256,22 +254,21 @@ assert false
        let {Declarations.mind_consnames=consnames ;
             Declarations.mind_typename=typename } = p
        in
-       let inst = Univ.UContext.instance mib.Declarations.mind_universes in
+       let inst = Univ.AUContext.instance (Declareops.inductive_polymorphic_context mib) in
        let arity = Inductive.type_of_inductive (Global.env()) ((mib,p),inst) in
        let lc = Inductiveops.arities_of_constructors (Global.env ()) ((sp,!tyno),inst) in
        let cons =
          (Array.fold_right (fun (name,lc) i -> (name,lc)::i)
             (Array.mapi
-               (fun j x ->(x,Unshare.unshare lc.(j))) consnames)
+               (fun j x ->(x,Unshare.unshare (EConstr.of_constr lc.(j)))) consnames)
             []
-         )
-       in
+         ) in
+       let arity = EConstr.of_constr arity in
          (typename,finite,Unshare.unshare arity,cons)::i
      ) packs []
    in
     Acic.InductiveDefinition (tys,params,nparams)
 ;;
-*)
 
 (* The current channel for .theory files *)
 let theory_buffer = Buffer.create 4000;;
