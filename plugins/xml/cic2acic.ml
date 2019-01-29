@@ -339,6 +339,8 @@ let lamn n env b =
 
 let applistc f l = EConstr.mkApp (f, Array.of_list l)
 
+let set_of_list l = Names.Id.Set.of_seq (List.to_seq l)
+
 let acic_of_cic_context' computeinnertypes seed ids_to_terms constr_to_ids
  ids_to_father_ids ids_to_inner_sorts ids_to_inner_types
  ?(fake_dependent_products=false) env idrefs evar_map t expectedty
@@ -544,17 +546,16 @@ print_endline "PASSATO" ; flush stdout ;
               if is_a_Prop innersort then
                add_inner_type fresh_id'' ;
               Acic.ACast (fresh_id'', aux' env idrefs v, aux' env idrefs t)
-(*
-           | Term.Prod (n,s,t) ->
+           | Constr.Prod (n,s,t) ->
               let n' =
                match n with
                   Names.Anonymous -> Names.Anonymous
                 | _ ->
-                  if not fake_dependent_products && Vars.noccurn 1 t then
+                  if not fake_dependent_products && EConstr.Vars.noccurn evar_map 1 t then
                    Names.Anonymous
                   else
                    Names.Name
-                    (Namegen.next_name_away n (Termops.ids_of_context env))
+                    (Namegen.next_name_away n (set_of_list (Termops.ids_of_context env)))
               in
                Hashtbl.add ids_to_inner_sorts fresh_id''
                 (string_of_sort innertype) ;
@@ -567,9 +568,9 @@ print_endline "PASSATO" ; flush stdout ;
                     None -> false
                   | Some father' ->
                      match
-                      Term.kind_of_term (Hashtbl.find ids_to_terms father')
+                      EConstr.kind evar_map (Hashtbl.find ids_to_terms father')
                      with
-                        Term.Prod _ -> true
+                        Constr.Prod _ -> true
                       | _ -> false
                 in
                  (fresh_id'', n', aux' env idrefs s)::
@@ -579,18 +580,18 @@ print_endline "PASSATO" ; flush stdout ;
                in
                 let new_env = push_rel (n', None, s) env in
                 let new_idrefs = fresh_id''::idrefs in
-                 (match Term.kind_of_term t with
-                     Term.Prod _ ->
+                 (match EConstr.kind evar_map t with
+                     Constr.Prod _ ->
                       aux computeinnertypes (Some fresh_id'') new_passed_prods
                        new_env new_idrefs t
                    | _ ->
                      Acic.AProds (new_passed_prods, aux' new_env new_idrefs t))
-           | Term.Lambda (n,s,t) ->
+           | Constr.Lambda (n,s,t) ->
               let n' =
                match n with
                   Names.Anonymous -> Names.Anonymous
                 | _ ->
-                  Names.Name (Namegen.next_name_away n (Termops.ids_of_context env))
+                  Names.Name (Namegen.next_name_away n (set_of_list (Termops.ids_of_context env)))
               in
                Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
                let sourcetype = CPropRetyping.get_type_of env evar_map s in
@@ -601,9 +602,9 @@ print_endline "PASSATO" ; flush stdout ;
                    None -> false
                  | Some father' ->
                     match
-                     Term.kind_of_term (Hashtbl.find ids_to_terms father')
+                     EConstr.kind evar_map (Hashtbl.find ids_to_terms father')
                     with
-                       Term.Lambda _ -> true
+                       Constr.Lambda _ -> true
                      | _ -> false
                in
                 if is_a_Prop innersort &&
@@ -616,8 +617,8 @@ print_endline "PASSATO" ; flush stdout ;
                    else []) in
                 let new_env = push_rel (n', None, s) env in
                 let new_idrefs = fresh_id''::idrefs in
-                 (match Term.kind_of_term t with
-                     Term.Lambda _ ->
+                 (match EConstr.kind evar_map t with
+                     Constr.Lambda _ ->
                       aux computeinnertypes (Some fresh_id'') new_passed_lambdas
                        new_env new_idrefs t
                    | _ ->
@@ -631,14 +632,14 @@ print_endline "PASSATO" ; flush stdout ;
                        | _ ->
                          Acic.ALambdas (new_passed_lambdas, t')
                  )
-           | Term.LetIn (n,s,t,d) ->
+           | Constr.LetIn (n,s,t,d) ->
               let id =
                match n with
                    Names.Anonymous -> Id.of_string "_X"
                  | Names.Name id -> id
               in
               let n' =
-               Names.Name (Namegen.next_ident_away id (Termops.ids_of_context env))
+               Names.Name (Namegen.next_ident_away id (set_of_list (Termops.ids_of_context env)))
               in
                Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
                let sourcesort =
@@ -652,9 +653,9 @@ print_endline "PASSATO" ; flush stdout ;
                    None -> false
                  | Some father' ->
                     match
-                     Term.kind_of_term (Hashtbl.find ids_to_terms father')
+                     EConstr.kind evar_map (Hashtbl.find ids_to_terms father')
                     with
-                       Term.LetIn _ -> true
+                       Constr.LetIn _ -> true
                      | _ -> false
                in
                 if is_a_Prop innersort then
@@ -666,13 +667,12 @@ print_endline "PASSATO" ; flush stdout ;
                    else []) in
                 let new_env = push_rel (n', Some s, t) env in
                 let new_idrefs = fresh_id''::idrefs in
-                 (match Term.kind_of_term d with
-                     Term.LetIn _ ->
+                 (match EConstr.kind evar_map d with
+                     Constr.LetIn _ ->
                       aux computeinnertypes (Some fresh_id'') new_passed_letins
                        new_env new_idrefs d
                    | _ -> Acic.ALetIns
                            (new_passed_letins, aux' new_env new_idrefs d))
-*)
            | Constr.App (h,t) ->
               Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
               if is_a_Prop innersort then
@@ -731,8 +731,7 @@ print_endline "PASSATO" ; flush stdout ;
                 explicit_substitute_and_eta_expand_if_required tt []
                  (List.map snd subst')
                  compute_result_if_eta_expansion_not_required
-(*
-           | Term.Case ({Term.ci_ind=(kn,i)},ty,term,a) ->
+           | Constr.Case ({Constr.ci_ind=(kn,i)},ty,term,a) ->
               Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
               if is_a_Prop innersort then
                add_inner_type fresh_id'' ;
@@ -742,7 +741,6 @@ print_endline "PASSATO" ; flush stdout ;
                Acic.ACase
                 (fresh_id'', (uri_of_kernel_name (Inductive kn)), i,
                   aux' env idrefs ty, aux' env idrefs term, a')
-*)
            | Constr.Fix ((ai,i),(f,t,b)) ->
               Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
               if is_a_Prop innersort then add_inner_type fresh_id'' ;
@@ -757,7 +755,7 @@ print_endline "PASSATO" ; flush stdout ;
                   (function
                       Names.Anonymous -> error "Anonymous fix function met"
                     | Names.Name id as n ->
-                       let res = Names.Name (Namegen.next_name_away n (Names.Id.Set.of_seq (List.to_seq !ids))) in
+                       let res = Names.Name (Namegen.next_name_away n (set_of_list !ids)) in
                         ids := id::!ids ;
                         res
                  ) f
@@ -791,7 +789,7 @@ print_endline "PASSATO" ; flush stdout ;
                   (function
                       Names.Anonymous -> error "Anonymous fix function met"
                     | Names.Name id as n ->
-                       let res = Names.Name (Namegen.next_name_away n (Names.Id.Set.of_seq (List.to_seq !ids))) in
+                       let res = Names.Name (Namegen.next_name_away n (set_of_list !ids)) in
                         ids := id::!ids ;
                         res
                  ) f
