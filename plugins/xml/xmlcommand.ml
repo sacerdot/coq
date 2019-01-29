@@ -294,6 +294,7 @@ let kind_of_variable id =
 ;;
 
 let kind_of_constant kn =
+try (
   match Decls.constant_kind kn with
     | IsAssumption Definitional -> "AXIOM","Declaration"
     | IsAssumption Logical -> "AXIOM","Axiom"
@@ -342,6 +343,9 @@ let kind_of_constant kn =
     | IsProof _ ->
         Feedback.msg_warning (Pp.str "Unsupported theorem kind (used Theorem instead)");
         "THEOREM",Kindops.string_of_theorem_kind Theorem
+) with Not_found ->
+   Feedback.msg_warning (Pp.str ("CRITICAL Looking for " ^ Names.Constant.to_string kn));
+   "THEOREM","UNKNOWN"
 ;;
 
 let kind_of_global r =
@@ -453,10 +457,8 @@ let print_body xml_library_root is_impl env mp (l,body) =
     | SFBmodule _ -> assert false
     | SFBmodtype _ -> assert false
     | SFBconst _(*cb*) ->
-assert false (*
-       let kn = Constant.make1 mp ^ l in
+       let kn = Constant.make2 mp l in
        print (Globnames.ConstRef kn) (kind_of_constant kn) xml_library_root
-*)
 (*
        let u =
          if cb.const_polymorphic then Univ.UContext.instance cb.const_universes
@@ -504,7 +506,9 @@ let print_structure xml_library_root is_type env mp locals struc =
   (*let kwd = if is_type then "Sig" else "Struct" in
   hv 2 (keyword kwd ++ spc () ++ print_struct false env' mp struc ++
         brk (1,-2) ++ keyword "End")*)
+(*XXX
   List.iter (print_body xml_library_root false env' mp) struc
+*) prerr_endline "IGNORING module"
 
 let rec print_modtype xml_library_root env mp locals mtb =
  (* match mtb.mod_type_alg with
@@ -558,11 +562,13 @@ let _ = Hook.set Stm.tactic_being_run_hook (function b -> ignore := b);;
 
 let _ =
   Hook.set Declaremods.xml_declare_module
-   (function mp -> if not !ignore then begin
+   (function mp -> if not !ignore then
+try (Printexc.record_backtrace true ;
+begin
      let me = Global.lookup_module mp in
      print_module xml_library_root (Global.env ()) mp me
-    end
-   )
+    end)
+with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
   
 
