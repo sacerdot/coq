@@ -286,6 +286,9 @@ let kind_of_variable id =
     | IsAssumption Logical -> "VARIABLE","Hypothesis"
     | IsAssumption Conjectural -> "VARIABLE","Conjecture"
     | IsDefinition Definition -> "VARIABLE","LocalDefinition"
+    | IsDefinition Let ->
+        Feedback.msg_warning (Pp.str "Let not supported in dtd (used LocalDefinition instead)");
+        "VARIABLE","LocalDefinition"
     | IsProof _ -> "VARIABLE","LocalFact"
     | _ -> CErrors.anomaly (Pp.str "Unsupported variable kind")
 ;;
