@@ -162,27 +162,25 @@ let string_list_of_named_context_list =
  List.map (fun x -> Id.to_string (Context.Named.Declaration.get_id x))
 ;;
 
-(*XXXX
 (* Function to collect the variables that occur in a term. *)
 (* Used only for variables (since for constants and mutual *)
 (* inductive types this information is already available.  *)
 let find_hyps t =
   let rec aux l t =
-   match Constr.kind_of_term t with
+   match Constr.kind t with
       Constr.Var id when not (Id.List.mem id l) ->
-       let (_,bo,ty) = Global.lookup_named id in
-        let boids =
-         match bo with
-            Some bo' -> aux l bo'
-          | None -> l
-        in
+       let boids,ty =
+        match Global.lookup_named id with
+           Context.Named.Declaration.LocalAssum (_,ty) -> l,ty
+         | Context.Named.Declaration.LocalDef (_,bo,ty) -> aux l bo,ty
+       in
          id::(aux boids ty)
     | Constr.Var _
     | Constr.Rel _
     | Constr.Meta _
     | Constr.Evar _
     | Constr.Sort _ -> l
-    | Constr.Proj _ -> ignore(Errors.todo "Proj in find_hyps"); assert false
+    | Constr.Proj _ -> ignore(CErrors.todo "Proj in find_hyps"); assert false
     | Constr.Cast (te,_, ty) -> aux (aux l te) ty
     | Constr.Prod (_,s,t) -> aux (aux l s) t
     | Constr.Lambda (_,s,t) -> aux (aux l s) t
@@ -204,31 +202,26 @@ let find_hyps t =
   and map_and_filter l =
    function
       [] -> []
-    | (n,_,_)::tl when not (Id.List.mem n l) -> n::(map_and_filter l tl)
+    | e::tl when not (Id.List.mem (Context.Named.Declaration.get_id e) l) -> Context.Named.Declaration.get_id e :: (map_and_filter l tl)
     | _::tl -> map_and_filter l tl
   in
    aux [] t
 ;;
 
 (* Functions to construct an object *)
-*)
 
 let mk_variable_obj id var =
-assert false (*
  let hyps,unsharedbody,typ =
   match var with
-     None -> [],None
-   | Some bo -> find_hyps bo, Some (Unshare.unshare bo)
+     Context.Named.Declaration.LocalAssum (_,typ) -> find_hyps typ,None,typ
+   | Context.Named.Declaration.LocalDef (_,bo,typ) -> find_hyps typ @ find_hyps bo, Some (Unshare.unshare bo),typ
  in
-  let hyps' = find_hyps typ @ hyps in
-  let hyps'' = List.map Id.to_string hyps' in
+  let hyps = List.map Id.to_string hyps in
   let variables = search_variables () in
-  let params = filter_params variables hyps'' in
+  let params = filter_params variables hyps in
    Acic.Variable
-    (Id.to_string id, unsharedbody, Unshare.unshare typ, params)
+    (Id.to_string id, Option.map EConstr.of_constr unsharedbody, Unshare.unshare (EConstr.of_constr typ), params)
 ;;
-*)
-
 
 let mk_constant_obj id bo ty variables hyps =
  let hyps = string_list_of_named_context_list hyps in
