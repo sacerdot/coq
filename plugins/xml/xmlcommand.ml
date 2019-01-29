@@ -388,8 +388,8 @@ let print glob_ref kind xml_library_root =
            Undef _ -> None
          | Def x -> Some (Mod_subst.force_constr x)
          | OpaqueDef x ->
-            (* CSC: always starting from empty_opaquetab may be bad *)
-            Some (Opaqueproof.force_proof Opaqueproof.empty_opaquetab x) in
+            let env = Global.env () in
+            Some (Opaqueproof.force_proof (Environ.opaque_tables env) x) in
        let val0 = Option.map EConstr.of_constr val0 in
        let typ = EConstr.of_constr typ in
         Cic2acic.Constant kn,mk_constant_obj id val0 typ variables hyps
@@ -574,7 +574,9 @@ let _ =
 
 let _ =
   Hook.set Declare.xml_declare_constant
-   (function (internal,kn) -> if not !ignore then begin
+   (function (internal,kn) -> if not !ignore then
+try (Printexc.record_backtrace true ;
+begin
      match !proof_to_export with
         None ->
           print (Globnames.ConstRef kn) (kind_of_constant kn)
@@ -586,6 +588,7 @@ let _ =
          show_pftreestate internal fn pftreestate
           (Label.to_id (Names.Constant.label kn)) ;
          proof_to_export := None end)
+with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
 
 let _ =
