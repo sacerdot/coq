@@ -438,7 +438,7 @@ let show fn =
 let rec print_functor xml_library_root fty fatom is_type env mp locals = function
   |NoFunctor me -> fatom xml_library_root is_type env mp locals me
   |MoreFunctor (mbid,mtb1,me2) ->
-assert false (*
+(*
       nametab_register_modparam mbid mtb1;
       let mp1 = MPbound mbid in
       let pr_mtb1 = fty env mp1 locals mtb1 in
@@ -449,7 +449,7 @@ assert false (*
         (keyword kwd ++ spc () ++
          str "(" ++ pr_id (MBId.to_id mbid) ++ str ":" ++ pr_mtb1 ++ str ")" ++
          spc() ++ print_functor fty fatom is_type env' mp locals' me2)
-*)
+*) prerr_endline "IGNORING functor"
 
 let print_body xml_library_root is_impl env mp (l,body) =
   (*let name = str (Label.to_string l) in*)
