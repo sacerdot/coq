@@ -122,27 +122,32 @@ let subtract l1 l2 =
    DirPath.make (List.rev (aux l1'))
 ;;
 
-let token_list_of_path dir id tag =
-  let token_list_of_dirpath dirpath =
-   List.rev_map Id.to_string (DirPath.repr dirpath) in
-   token_list_of_dirpath dir @ [Id.to_string id ^ "." ^ (ext_of_tag tag)]
+let token_list_of_path uripath id tag =
+   uripath @ [Id.to_string id ^ "." ^ (ext_of_tag tag)]
+
+let rec uripath_of_modpath mp =
+ Names.ModPath.(match mp with
+   MPfile dp -> List.rev_map Id.to_string (DirPath.repr dp)
+ | MPbound bid -> let _,id,dp = MBId.repr bid in List.rev_map Id.to_string (id::DirPath.repr dp)
+ | MPdot (mp,l) -> uripath_of_modpath mp @ [Names.Label.to_string l])
 
 let token_list_of_kernel_name tag =
- let id,dir = match tag with
+ let id,uripath = match tag with
    | Variable kn ->
-       Label.to_id (Names.KerName.label kn), Lib.cwd ()
+       Label.to_id (Names.KerName.label kn),
+        List.rev_map Id.to_string (DirPath.repr (Lib.cwd ()))
    | Constant con ->
        (* We empty the dirpath because later objects refer to the cooked
           version *)
        let mp,_,lab = Names.Constant.repr3 con in
-       Label.to_id lab, Names.ModPath.dp mp
+       Label.to_id lab, uripath_of_modpath mp
    | Inductive kn ->
        (* We empty the dirpath because later objects refer to the cooked
           version *)
        let mp,_,lab = Names.MutInd.repr3 kn in
-       Label.to_id lab, Names.ModPath.dp mp
+       Label.to_id lab, uripath_of_modpath mp
  in
- token_list_of_path dir id (etag_of_tag tag)
+ token_list_of_path uripath id (etag_of_tag tag)
 ;;
 
 let uri_of_kernel_name tag =
