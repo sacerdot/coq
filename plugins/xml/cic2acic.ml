@@ -451,13 +451,13 @@ print_endline "PASSATO" ; flush stdout ;
                let g,_(*XXX???*) = Termops.global_of_constr evar_map h in
                let sp =
                 match g with
-                   Globnames.ConstructRef ((induri,_),_)
-                 | Globnames.IndRef (induri,_) ->
+                   Names.GlobRef.ConstructRef ((induri,_),_)
+                 | Names.GlobRef.IndRef (induri,_) ->
                     Nametab.path_of_global (Globnames.IndRef (induri,0))
-                 | Globnames.VarRef id ->
+                 | Names.GlobRef.VarRef id ->
                     (* Invariant: variables are never cooked in Coq *)
                     raise Not_found
-                 | _ -> Nametab.path_of_global g
+                 | Names.GlobRef.ConstRef _ -> Nametab.path_of_global g
                in
                Dischargedhypsmap.get_discharged_hyps sp,
                get_module_path_of_full_path sp
