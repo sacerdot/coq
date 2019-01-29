@@ -556,9 +556,7 @@ let proof_to_export = ref None (* holds the proof-tree to export *)
 ;;
 
 let ignore = ref false;;
-(*XXX???
 let _ = Hook.set Stm.tactic_being_run_hook (function b -> ignore := b);;
-*)
 
 let _ =
   Hook.set Declaremods.xml_declare_module

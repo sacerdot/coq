@@ -108,6 +108,9 @@ let forward_feedback, forward_feedback_hook =
 let unreachable_state, unreachable_state_hook = Hook.make
  ~default:(fun ~doc:_ _ _ -> ()) ()
 
+let tactic_being_run, tactic_being_run_hook = Hook.make
+ ~default:(fun _ -> ()) ()
+
 include Hook
 
 (* enables:  Hooks.(call foo args) *)
@@ -2389,8 +2392,10 @@ let known_state ~doc ?(redefine_qed=false) ~cache id =
           (fun () ->
             resilient_tactic id cblock (fun () ->
               reach ~cache:`Shallow view.next;
+              Hooks.(call tactic_being_run true);
               Partac.vernac_interp ~solve ~abstract ~cancel_switch
-                !cur_opt.async_proofs_n_tacworkers view.next id x)
+                !cur_opt.async_proofs_n_tacworkers view.next id x;
+              Hooks.(call tactic_being_run false))
           ), cache, true
       | `Cmd { cast = x; cqueue = `QueryQueue cancel_switch }
         when async_proofs_is_master !cur_opt -> (fun () ->
@@ -2402,7 +2407,9 @@ let known_state ~doc ?(redefine_qed=false) ~cache id =
               reach view.next;
               (* State resulting from reach *)
               let st = Vernacstate.freeze_interp_state `No in
-              ignore(stm_vernac_interp id st x)
+              Hooks.(call tactic_being_run true);
+              ignore(stm_vernac_interp id st x);
+              Hooks.(call tactic_being_run false)
             );
 	    if eff then update_global_env ()
           ), (if eff then `Yes else cache), true
@@ -3251,6 +3258,7 @@ let state_ready_hook = Hooks.state_ready_hook
 let forward_feedback_hook = Hooks.forward_feedback_hook
 let unreachable_state_hook = Hooks.unreachable_state_hook
 let () = Hook.set Obligations.stm_get_fix_exn (fun () -> !State.fix_exn_ref)
+let tactic_being_run_hook = Hooks.tactic_being_run_hook
 
 type document = VCS.vcs
 let backup () = VCS.backup ()
