@@ -125,18 +125,22 @@ let subtract l1 l2 =
 let token_list_of_path dir id tag =
   let token_list_of_dirpath dirpath =
    List.rev_map Id.to_string (DirPath.repr dirpath) in
-  token_list_of_dirpath dir @ [Id.to_string id ^ "." ^ (ext_of_tag tag)]
+   token_list_of_dirpath dir @ [Id.to_string id ^ "." ^ (ext_of_tag tag)]
 
 let token_list_of_kernel_name tag =
  let id,dir = match tag with
    | Variable kn ->
        Label.to_id (Names.KerName.label kn), Lib.cwd ()
    | Constant con ->
-       let _,dir,lab = Names.Constant.repr3 con in
-       Label.to_id lab, dir
+       (* We empty the dirpath because later objects refer to the cooked
+          version *)
+       let mp,_,lab = Names.Constant.repr3 con in
+       Label.to_id lab, Names.ModPath.dp mp
    | Inductive kn ->
-       let _,dir,lab = Names.MutInd.repr3 kn in
-       Label.to_id lab, dir
+       (* We empty the dirpath because later objects refer to the cooked
+          version *)
+       let mp,_,lab = Names.MutInd.repr3 kn in
+       Label.to_id lab, Names.ModPath.dp mp
  in
  token_list_of_path dir id (etag_of_tag tag)
 ;;
@@ -144,11 +148,6 @@ let token_list_of_kernel_name tag =
 let uri_of_kernel_name tag =
   let tokens = token_list_of_kernel_name tag in
    "cic:/" ^ String.concat "/" tokens
-
-let uri_of_declaration id tag =
- let dir = Libnames.pop_dirpath_n (Lib.sections_depth ()) (Lib.cwd ()) in
- let tokens = token_list_of_path dir id tag in
-  "cic:/" ^ String.concat "/" tokens
 
 (* Special functions for handling of CCorn's CProp "sort" *)
 
