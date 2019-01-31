@@ -404,9 +404,6 @@ Feedback.msg_debug (Pp.(++) (Pp.str "BUG: this subterm was not visited during th
                 | _, CProp -> CProp
                 | _, _ -> expected_innersort
          in
-(* Debugging only:
-print_endline "PASSATO" ; flush stdout ;
-*)
           let ainnertypes,expected_available =
            if computeinnertypes then
             let annexpected,expected_available =
