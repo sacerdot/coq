@@ -465,10 +465,10 @@ let rec print_functor xml_library_root (*fty*) fatom (*is_type env*) mp (*locals
          spc() ++ print_functor fty fatom is_type env' mp locals' me2)
 *) prerr_endline "IGNORING functor"
 
-let print_body xml_library_root (*is_impl env*) mp (l,body) =
+let rec print_body xml_library_root (*is_impl env*) mp (l,body) =
   (*let name = str (Label.to_string l) in*)
   match body with
-    | SFBmodule _ -> assert false (*XXX TODO*)
+    | SFBmodule x -> print_module xml_library_root x.mod_mp x
     | SFBmodtype _ -> assert false (*XXX TODO*)
     | SFBconst _(*cb*) ->
        let kn = Constant.make2 mp l in
@@ -512,7 +512,7 @@ let print_body xml_library_root (*is_impl env*) mp (l,body) =
         in
         keyword ++ spc () ++ name *)
 
-let print_structure xml_library_root (*is_type env*) mp (*locals*) struc =
+and print_structure xml_library_root (*is_type env*) mp (*locals*) struc =
   (*let env' = Option.map
     (Modops.add_structure mp struc Mod_subst.empty_delta_resolver) env in
   nametab_register_module_body mp struc;*)
@@ -522,21 +522,16 @@ let print_structure xml_library_root (*is_type env*) mp (*locals*) struc =
         brk (1,-2) ++ keyword "End")*)
   List.iter (print_body xml_library_root (*false env'*) mp) struc
 
-let rec print_modtype xml_library_root (*env*) mp (*locals*) mtb =
+and print_modtype xml_library_root (*env*) mp (*locals*) mtb =
  (* match mtb.mod_type_alg with
   | Some me -> print_expression true env mp locals me
   | None -> print_signature true env mp locals mtb.mod_type*)
  print_signature xml_library_root (*true env*) mp (*locals*) mtb.mod_type
 
-and print_signature xml_library_root (*x*) =
- print_functor xml_library_root (*print_modtype*) print_structure (*x*)
+and print_signature xml_library_root (*is_type env*) mp me =
+ print_functor xml_library_root (*print_modtype*) print_structure (*is_type env*) mp me
 
-let print_signature' xml_library_root is_type env mp me =
- (* States.with_state_protection
-    (fun e -> eval_ppcmds (print_signature is_type env mp [] e)) me*)
- print_signature xml_library_root (*is_type env*) mp (*[]*) me
-
-let print_module xml_library_root env mp mb =
+and print_module xml_library_root (*env*) mp mb =
 (*
   let name = print_modpath [] mp in
   let pr_equals = spc () ++ str ":= " in
@@ -553,7 +548,12 @@ let print_module xml_library_root env mp mb =
   in
   hv 0 (keyword "Module" ++ spc () ++ name ++ modtype ++ body)
 *)
-  print_signature' xml_library_root true env mp mb.mod_type
+  print_signature xml_library_root (*true env*) mp mb.mod_type
+
+let print_module xml_library_root (*env*) mp mb =
+ (* States.with_state_protection
+    (fun mb -> eval_ppcmds (print_module xml_library_root env mp mb)) me*)
+ print_module xml_library_root mp mb
 
 let print_modtype_of_module xml_library_root mp =
  let mb = Global.lookup_module mp in
@@ -586,7 +586,7 @@ try (Printexc.record_backtrace true ;
 begin
      prerr_endline "## DECLARE MODULE" ;
      let me = Global.lookup_module mp in
-     print_module xml_library_root (Global.env ()) mp me
+     print_module xml_library_root (*(Global.env ())*) mp me
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
