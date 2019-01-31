@@ -30,11 +30,16 @@
 <!-- in foreign markup (e.g. XHTML)                                   -->
 
 <!ENTITY % theorystructure
-  '(ht:AXIOM|ht:DEFINITION|ht:THEOREM|ht:VARIABLE|ht:SECTION|ht:MUTUAL)*'>
+  '(ht:AXIOM|ht:DEFINITION|ht:THEOREM|ht:VARIABLE|ht:SECTION|ht:MODULE|ht:MUTUAL)*'>
 
 <!ELEMENT ht:SECTION (%theorystructure;)>
 <!ATTLIST ht:SECTION
           uri CDATA #REQUIRED>
+
+<!ELEMENT ht:MODULE (%theorystructure;)>
+<!ATTLIST ht:MODULE
+          uri CDATA #REQUIRED
+          as (Module|ModuleType)>
 
 <!ELEMENT ht:MUTUAL (ht:DEFINITION,ht:DEFINITION+)>
 
