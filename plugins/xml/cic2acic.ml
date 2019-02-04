@@ -125,16 +125,35 @@ let subtract l1 l2 =
 let token_list_of_path uripath id tag =
    uripath @ [Id.to_string id ^ "." ^ (ext_of_tag tag)]
 
+(* map from mbids to "uri" as list of ids *)
+let mbid_to_ids = ref (Names.MBImap.empty,[])
+let register_mbids ks dp =
+ let map,stack = !mbid_to_ids in
+ let map' =
+  List.fold_left (fun map k ->
+   let _,id,_ = Names.MBId.repr k in
+   let v = List.rev (id::DirPath.repr dp) in
+   Names.MBImap.add k v map) map ks in
+ mbid_to_ids := (map',map::stack)
+let unregister_mbids () =
+ match !mbid_to_ids with
+    _,[] -> assert false
+  | _,map::stack -> mbid_to_ids := (map,stack)
+let mbid_to_ids mbid = Names.MBImap.find mbid (fst !mbid_to_ids)
+
 let rec uripath_of_modpath mp =
  Names.ModPath.(match mp with
    MPfile dp -> List.rev_map Id.to_string (DirPath.repr dp)
- | MPbound bid -> let _,id,dp = MBId.repr bid in List.rev_map Id.to_string (id::DirPath.repr dp)
+ | MPbound bid ->
+    let ids = mbid_to_ids bid in
+    List.map Id.to_string ids
  | MPdot (mp,l) -> uripath_of_modpath mp @ [Names.Label.to_string l])
 
 let token_list_of_kernel_name tag =
  let id,uripath = match tag with
    | Variable kn ->
        Label.to_id (Names.KerName.label kn),
+        (*XXX: cwd() va bene? che succede se annido le sezioni? *)
         List.rev_map Id.to_string (DirPath.repr (Lib.cwd ()))
    | Constant con ->
        (* We empty the dirpath because later objects refer to the cooked
@@ -446,17 +465,22 @@ Feedback.msg_debug (Pp.(++) (Pp.str "BUG: this subterm was not visited during th
            let variables,basedir =
              try
                let g,_(*XXX???*) = Termops.global_of_constr evar_map h in
-               let sp =
+               let sp = Nametab.path_of_global g in
+               let tag =
                 match g with
                    Names.GlobRef.ConstructRef ((induri,_),_)
                  | Names.GlobRef.IndRef (induri,_) ->
-                    Nametab.path_of_global (Globnames.IndRef (induri,0))
+                    Inductive induri
                  | Names.GlobRef.VarRef id ->
                     (* Invariant: variables are never cooked in Coq *)
                     raise Not_found
-                 | Names.GlobRef.ConstRef _ -> Nametab.path_of_global g
+                 | Names.GlobRef.ConstRef kn -> Constant kn
                in
-               Dischargedhypsmap.get_discharged_hyps sp,
+let res =
+               Dischargedhypsmap.get_discharged_hyps sp
+in Feedback.msg_warning (str ("@@ " ^ Libnames.string_of_path sp ^ " " ^ string_of_int (List.length res)));
+res
+,
                get_module_path_of_full_path sp
              with Not_found ->
                 (* no explicit substitution *)
@@ -476,6 +500,9 @@ Feedback.msg_debug (Pp.(++) (Pp.str "BUG: this subterm was not visited during th
                 let subst,extra_args,uninst = get_explicit_subst tl1 tl2 in
                 let (he1_sp, he1_id) = Libnames.repr_path he1 in
                 let he1' = remove_module_dirpath_from_dirpath ~basedir he1_sp in
+(* Stampa S0.S1 su esempio senza modulo M in mezzo
+CErrors.user_err (str ("UFFA: " ^ Names.DirPath.to_string (fst (Libnames.repr_path he1)) ^ " ==> " ^ String.concat "/" (List.map Names.Id.to_string he1')));
+*)
                 let he1'' =
                  String.concat "/"
                   (List.rev_map Id.to_string he1') ^ "/"
