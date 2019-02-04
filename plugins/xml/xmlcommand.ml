@@ -135,6 +135,7 @@ let string_list_of_named_context_list =
 (* Function to collect the variables that occur in a term. *)
 (* Used only for variables (since for constants and mutual *)
 (* inductive types this information is already available.  *)
+(* CSC: they are returned in random order *)
 let find_hyps t =
   let rec aux l t =
    match Constr.kind t with
@@ -186,7 +187,6 @@ let mk_variable_obj id var =
      Context.Named.Declaration.LocalAssum (_,typ) -> find_hyps typ,None,typ
    | Context.Named.Declaration.LocalDef (_,bo,typ) -> find_hyps typ @ find_hyps bo, Some (Unshare.unshare bo),typ
  in
-  (*let hyps = List.map Id.to_string hyps in*)
   let params = uris_of_params hyps in
    Acic.Variable
     (Id.to_string id, Option.map EConstr.of_constr unsharedbody, Unshare.unshare (EConstr.of_constr typ), params)

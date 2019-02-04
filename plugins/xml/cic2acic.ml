@@ -128,8 +128,6 @@ type sort =
  | CProp
 ;;
 
-let prerr_endline _ = ();;
-
 let family_of_term sigma ty =
  match EConstr.kind_of_type sigma ty with
     Term.SortType s -> Coq_sort (Sorts.family s)
