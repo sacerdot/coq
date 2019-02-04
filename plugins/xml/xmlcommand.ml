@@ -449,8 +449,8 @@ let show fn =
 
 (***** Module Printing ****)
 
-let rec print_functor xml_library_root (*fty*) fatom (*is_type env*) mp (*locals*) = function
-  |NoFunctor me -> fatom xml_library_root (*is_type env*) mp (*locals*) me
+let rec print_functor xml_library_root (*fty*) fatom (*env*) mp (*locals*) = function
+  |NoFunctor me -> fatom xml_library_root (*env*) mp (*locals*) me
   |MoreFunctor (mbid,mtb1,me2) ->
 (*
       nametab_register_modparam mbid mtb1;
@@ -458,78 +458,40 @@ let rec print_functor xml_library_root (*fty*) fatom (*is_type env*) mp (*locals
       let pr_mtb1 = fty env mp1 locals mtb1 in
       let env' = Option.map (Modops.add_module_type mp1 mtb1) env in
       let locals' = (mbid, get_new_id locals (MBId.to_id mbid))::locals in
-      let kwd = if is_type then "Funsig" else "Functor" in
       hov 2
         (keyword kwd ++ spc () ++
          str "(" ++ pr_id (MBId.to_id mbid) ++ str ":" ++ pr_mtb1 ++ str ")" ++
          spc() ++ print_functor fty fatom is_type env' mp locals' me2)
 *) prerr_endline "IGNORING functor"
 
-let rec print_body xml_library_root (*is_impl env*) mp (l,body) =
-  (*let name = str (Label.to_string l) in*)
+let rec print_body xml_library_root (*env*) mp (l,body) =
   match body with
-    | SFBmodule x -> print_module xml_library_root x.mod_mp x
-    | SFBmodtype _ -> assert false (*XXX TODO*)
-    | SFBconst _(*cb*) ->
+    | SFBmodule mb -> print_module xml_library_root mb.mod_mp mb
+    | SFBmodtype mtb ->
+       print_modtype xml_library_root mtb.mod_mp mtb.mod_type_alg mtb.mod_type
+    | SFBconst _ ->
        let kn = Constant.make2 mp l in
        print (Globnames.ConstRef kn) (kind_of_constant kn) xml_library_root
-(*
-       let u =
-         if cb.const_polymorphic then Univ.UContext.instance cb.const_universes
-         else Univ.Instance.empty
-       in
-       let sigma = Evd.empty in
-      (match cb.const_body with
-        | Def _ -> def "Definition" ++ spc ()
-        | OpaqueDef _ when is_impl -> def "Theorem" ++ spc ()
-        | _ -> def "Parameter" ++ spc ()) ++ name ++
-      (match env with
-          | None -> mt ()
-          | Some env ->
-            str " :" ++ spc () ++
-            hov 0 (Printer.pr_ltype_env env sigma
-                (Vars.subst_instance_constr u
-                  (Typeops.type_of_constant_type env cb.const_type))) ++
-            (match cb.const_body with
-              | Def l when is_impl ->
-                spc () ++
-                hov 2 (str ":= " ++
-                       Printer.pr_lconstr_env env sigma
-                          (Vars.subst_instance_constr u (Mod_subst.force_constr l)))
-              | _ -> mt ()) ++ str "." ++
-            Printer.pr_universe_ctx sigma (Univ.instantiate_univ_context cb.const_universes)) *)
-    | SFBmind mib -> assert false (*XXX TODO*) (*
-      try
-        let env = Option.get env in
-        pr_mutual_inductive_body env (MutInd.make2 mp l) mib
-      with e when Errors.noncritical e ->
-        let keyword =
-          let open Decl_kinds in
-          match mib.mind_finite with
-          | Finite -> def "Inductive"
-          | BiFinite -> def "Variant"
-          | CoFinite -> def "CoInductive"
-        in
-        keyword ++ spc () ++ name *)
+    | SFBmind mib ->
+       let kn = MutInd.make2 mp l in
+       let is_record = mib.mind_record <> NotRecord in
+       print (Globnames.IndRef (kn,0)) (kind_of_inductive is_record kn)
+        xml_library_root
 
-and print_structure xml_library_root (*is_type env*) mp (*locals*) struc =
+and print_structure xml_library_root (*env*) mp (*locals*) struc =
   (*let env' = Option.map
     (Modops.add_structure mp struc Mod_subst.empty_delta_resolver) env in
   nametab_register_module_body mp struc;*)
-  (*XXXXX *)
-  (*let kwd = if is_type then "Sig" else "Struct" in
-  hv 2 (keyword kwd ++ spc () ++ print_struct false env' mp struc ++
-        brk (1,-2) ++ keyword "End")*)
-  List.iter (print_body xml_library_root (*false env'*) mp) struc
+  List.iter (print_body xml_library_root (*env'*) mp) struc
 
-and print_modtype xml_library_root (*env*) mp (*locals*) mtb =
+and print_modtype xml_library_root (*env*) mp (*locals*) mtb_mod_type_alg mtb_mod_type =
  (* match mtb.mod_type_alg with
   | Some me -> print_expression true env mp locals me
   | None -> print_signature true env mp locals mtb.mod_type*)
- print_signature xml_library_root (*true env*) mp (*locals*) mtb.mod_type
+ print_signature xml_library_root (*true env*) mp (*locals*) mtb_mod_type
 
-and print_signature xml_library_root (*is_type env*) mp me =
- print_functor xml_library_root (*print_modtype*) print_structure (*is_type env*) mp me
+and print_signature xml_library_root (*env*) mp me =
+ print_functor xml_library_root (*print_modtype*) print_structure (*env*) mp me
 
 and print_module xml_library_root (*env*) mp mb =
 (*
@@ -561,7 +523,7 @@ let print_modtype_of_module xml_library_root mp =
   if xml_library_root <> None then
    let dir = filename_of_modpath xml_library_root mp in
     Unix.rename dir (dir^".impl") ;
-  print_modtype xml_library_root mp mb
+  print_modtype xml_library_root mp mb.mod_type_alg mb.mod_type
  end
 
 (***** End of Module Printing ****)
@@ -593,14 +555,17 @@ with exn -> Printexc.print_backtrace stderr; raise exn)
 
 let _ =
   Hook.set Declaremods.xml_start_module
-   (function mp -> if not !ignore then
+   (function (mp,args) -> if not !ignore then
 try (Printexc.record_backtrace true ;
 begin
      let s = "cic:" ^ uri_of_modpath mp in
-      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"Module\">")
-     (*let me = Global.lookup_module mp in
-     print_module xml_library_root (Global.env ()) mp me
-     *)
+      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"Module\">") ;
+     Cic2acic.register_mbids args (Lib.cwd ()) ;
+     List.iter (fun id ->
+       let mp = Names.ModPath.MPbound id in
+       let mb = Global.lookup_module mp in
+       print_module xml_library_root (*(Global.env ())*) mp mb
+     ) args
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
@@ -613,14 +578,15 @@ begin
      theory_output_string ("</ht:MODULE>") ;
      (*let me = Global.lookup_module mp in
      print_module xml_library_root (Global.env ()) mp me *)
-     print_modtype_of_module xml_library_root mp
+     print_modtype_of_module xml_library_root mp ;
+     Cic2acic.unregister_mbids ()
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
 
 let _ =
   Hook.set Declaremods.xml_start_module_type
-   (function mp -> if not !ignore then
+   (function (mp,args) -> if not !ignore then
 try (Printexc.record_backtrace true ;
 begin
      let s = "cic:" ^ uri_of_modpath mp in

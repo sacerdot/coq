@@ -618,7 +618,7 @@ let start_module interp_modast export id args res fs =
   openmod_info := { cur_typ = res_entry_o; cur_typs = subtyps };
   let prefix = Lib.start_module export id mp fs in
   Nametab.push_dir (Nametab.Until 1) (prefix.obj_dir) (DirOpenModule prefix);
-  if_xml (Hook.get f_xml_start_module) mp;
+  if_xml (Hook.get f_xml_start_module) (mp,List.map (fun (x,_,_) -> x) arg_entries_r) ;
   mp
 
 let end_module () =
@@ -739,7 +739,7 @@ let start_modtype interp_modast id args mtys fs =
   openmodtype_info := sub_mty_l;
   let prefix = Lib.start_modtype id mp fs in
   Nametab.push_dir (Nametab.Until 1) (prefix.obj_dir) (DirOpenModtype prefix);
-  if_xml (Hook.get f_xml_start_module_type) mp;
+  if_xml (Hook.get f_xml_start_module_type) (mp,List.map (fun (x,_,_) -> x) arg_entries_r) ;
   mp
 
 let end_modtype () =

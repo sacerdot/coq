@@ -53,6 +53,7 @@ let load_constant i ((sp,kn), obj) =
     alreadydeclared (Id.print (basename sp) ++ str " already exists");
   let con = Global.constant_of_delta_kn kn in
   Nametab.push (Nametab.Until i) sp (ConstRef con);
+  Dischargedhypsmap.set_discharged_hyps sp obj.cst_hyps;
   add_constant_kind con obj.cst_kind
 
 (* Opening means making the name without its module qualification available *)
@@ -115,7 +116,7 @@ let discharge_constant ((sp, kn), obj) =
 (* Hack to reduce the size of .vo: we keep only what load/open needs *)
 let dummy_constant cst = {
   cst_decl = None;
-  cst_hyps = [];
+  cst_hyps = cst.cst_hyps;
   cst_kind = cst.cst_kind;
   cst_locl = cst.cst_locl;
 }
