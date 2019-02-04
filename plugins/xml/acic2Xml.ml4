@@ -200,14 +200,7 @@ let print_term ids_to_inner_sorts =
   aux
 ;;
 
-let param_attribute_of_params params =
- List.fold_right
-  (fun (path,l) i ->
-    List.fold_right
-     (fun x i ->path ^ "/" ^ x ^ ".var" ^ match i with "" -> "" | i' -> " " ^ i'
-     ) l "" ^ match i with "" -> "" | i' -> " " ^ i'
-  ) params ""
-;;
+let param_attribute_of_params params = String.concat " " params
 
 let print_object uri ids_to_inner_sorts =
  let aux =

@@ -29,55 +29,11 @@ open Names
 open Util
 open Declarations
 
-(* filter_params pvars hyps *)
-(* filters out from pvars (which is a list of lists) all the variables *)
-(* that does not belong to hyps (which is a simple list)               *)
-(* It returns a list of couples relative section path -- list of       *)
-(* variable names.                                                     *)
-let filter_params pvars hyps =
- let rec aux ids =
-  function
-     [] -> []
-   | (id,he)::tl ->
-      let ids' = id::ids in
-      let ids'' =
-       "cic:/" ^
-        String.concat "/" (List.rev_map Id.to_string ids') in
-      let he' =
-       ids'', List.rev (List.filter (function x -> String.List.mem x hyps) he)
-      in
-      let tl' = aux ids' tl in
-       match he' with
-          _,[] -> tl'
-        | _,_  -> he'::tl'
- in
-  let cwd = Lib.cwd () in
-  let cwdsp = Libnames.make_path cwd (Id.of_string "dummy") in
-  let modulepath = Cic2acic.get_module_path_of_full_path cwdsp in
-   aux (DirPath.repr modulepath) (List.rev pvars)
-;;
-
-(* The computation is very inefficient, but we can't do anything *)
-(* better unless this function is reimplemented in the Declare   *)
-(* module.                                                       *)
-let search_variables () =
-  let cwd = Lib.cwd () in
-  let cwdsp = Libnames.make_path cwd (Id.of_string "dummy") in
-  let modulepath = Cic2acic.get_module_path_of_full_path cwdsp in
-   let rec aux =
-    function
-       [] -> []
-     | he::tl as modules ->
-        let one_section_variables =
-         let dirpath = DirPath.make (modules @ DirPath.repr modulepath) in
-          let t = List.map Id.to_string (Decls.last_section_hyps dirpath) in
-           [he,t]
-        in
-         one_section_variables @ aux tl
-   in
-    aux
-     (Cic2acic.remove_module_dirpath_from_dirpath
-       ~basedir:modulepath cwd)
+let uris_of_params hyps =
+ List.rev_map (fun id ->
+   let dp = Names.DirPath.repr (Decls.variable_path id) in
+   "cic:/" ^ String.concat "/" (List.rev_map Id.to_string dp) ^ "/" ^ Names.Id.to_string id ^ ".var"
+ ) hyps
 ;;
 
 (* FUNCTIONS TO PRINT A SINGLE OBJECT OF COQ *)
@@ -173,7 +129,7 @@ let print_object uri obj sigma filename =
 ;;
 
 let string_list_of_named_context_list =
- List.map (fun x -> Id.to_string (Context.Named.Declaration.get_id x))
+ List.map (fun x -> (*Id.to_string*) (Context.Named.Declaration.get_id x))
 ;;
 
 (* Function to collect the variables that occur in a term. *)
@@ -230,17 +186,16 @@ let mk_variable_obj id var =
      Context.Named.Declaration.LocalAssum (_,typ) -> find_hyps typ,None,typ
    | Context.Named.Declaration.LocalDef (_,bo,typ) -> find_hyps typ @ find_hyps bo, Some (Unshare.unshare bo),typ
  in
-  let hyps = List.map Id.to_string hyps in
-  let variables = search_variables () in
-  let params = filter_params variables hyps in
+  (*let hyps = List.map Id.to_string hyps in*)
+  let params = uris_of_params hyps in
    Acic.Variable
     (Id.to_string id, Option.map EConstr.of_constr unsharedbody, Unshare.unshare (EConstr.of_constr typ), params)
 ;;
 
-let mk_constant_obj id bo ty variables hyps =
+let mk_constant_obj id bo ty hyps =
  let hyps = string_list_of_named_context_list hyps in
  let ty = Unshare.unshare ty in
- let params = filter_params variables hyps in
+ let params = uris_of_params hyps in
   match bo with
      None ->
       Acic.Constant (Id.to_string id,None,ty,params)
@@ -249,9 +204,9 @@ let mk_constant_obj id bo ty variables hyps =
        (Id.to_string id, Some (Unshare.unshare c), ty,params)
 ;;
 
-let mk_inductive_obj sp mib packs variables nparams hyps finite =
+let mk_inductive_obj sp mib packs nparams hyps finite =
   let hyps = string_list_of_named_context_list hyps in
-  let params = filter_params variables hyps in
+  let params = uris_of_params hyps in
 (*  let nparams = extract_nparams packs in *)
    let tys =
     let tyno = ref (Array.length packs) in
@@ -389,8 +344,6 @@ let print_object_kind uri (xmltag,variation) =
 (*       form of the definition (all the parameters are                   *)
 (*       lambda-abstracted, but the object can still refer to variables)  *)
 let print glob_ref kind xml_library_root =
-  (* Variables are the identifiers of the variables in scope *)
-  let variables = search_variables () in
   let tag,obj =
    match glob_ref with
       Globnames.VarRef id ->
@@ -413,14 +366,14 @@ let print glob_ref kind xml_library_root =
             Some (Opaqueproof.force_proof (Environ.opaque_tables env) x) in
        let val0 = Option.map EConstr.of_constr val0 in
        let typ = EConstr.of_constr typ in
-        Cic2acic.Constant kn,mk_constant_obj id val0 typ variables hyps
+        Cic2acic.Constant kn,mk_constant_obj id val0 typ hyps
     | Globnames.IndRef (kn,_) ->
        let mib = Global.lookup_mind kn in
        let {Declarations.mind_nparams=nparams;
 	    Declarations.mind_packets=packs ;
             Declarations.mind_hyps=hyps;
             Declarations.mind_finite=finite} = mib in
-          Cic2acic.Inductive kn,mk_inductive_obj kn mib packs variables nparams hyps (finite<>CoFinite)
+          Cic2acic.Inductive kn,mk_inductive_obj kn mib packs nparams hyps (finite<>CoFinite)
     | Globnames.ConstructRef _ ->
        error ("a single constructor cannot be printed in XML")
   in
@@ -449,7 +402,7 @@ let show fn =
 
 (***** Module Printing ****)
 
-let rec print_functor xml_library_root (*fty*) fatom (*env*) mp (*locals*) = function
+let print_functor xml_library_root (*fty*) fatom (*env*) mp (*locals*) = function
   |NoFunctor me -> fatom xml_library_root (*env*) mp (*locals*) me
   |MoreFunctor (mbid,mtb1,me2) ->
 (*

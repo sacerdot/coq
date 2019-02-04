@@ -18,44 +18,6 @@ open Names
 
 (* Utility Functions *)
 
-exception TwoModulesWhoseDirPathIsOneAPrefixOfTheOther;;
-let get_module_path_of_full_path path =
- let dirpath = fst (Libnames.repr_path path) in
- let modules = Lib.library_dp () :: (Library.loaded_libraries ()) in
-  match
-   List.filter
-    (function modul -> Libnames.is_dirpath_prefix_of modul dirpath) modules
-  with
-     [] ->
-       Feedback.msg_warning (Pp.str ("Modules not supported: reference to "^
-         Libnames.string_of_path path^" will be wrong"));
-       dirpath
-   | [modul] -> modul
-   | _ ->
-       raise TwoModulesWhoseDirPathIsOneAPrefixOfTheOther
-;;
-
-(*CSC: Problem: here we are using the wrong (???) hypothesis that there do *)
-(*CSC: not exist two modules whose dir_paths are one a prefix of the other *)
-let remove_module_dirpath_from_dirpath ~basedir dir =
-  if Libnames.is_dirpath_prefix_of basedir dir then
-   let ids = DirPath.repr dir in
-   let rec remove_firsts n l =
-    match n,l with
-       (0,l) -> l
-     | (n,he::tl) -> remove_firsts (n-1) tl
-     | _ -> assert false
-   in
-    let ids' =
-     List.rev
-      (remove_firsts
-        (List.length (DirPath.repr basedir))
-        (List.rev ids))
-    in
-     ids'
-  else DirPath.repr dir
-;;
-
 let error msg =
  prerr_endline msg ;
  assert false
@@ -106,20 +68,6 @@ let ext_of_tag =
     TConstant -> "con"
   | TInductive -> "ind"
   | TVariable -> "var"
-;;
-
-exception FunctorsXMLExportationNotImplementedYet;;
-
-let subtract l1 l2 =
- let l1' = List.rev (DirPath.repr l1) in
- let l2' = List.rev (DirPath.repr l2) in
-  let rec aux =
-   function
-      he::tl when tl = l2' -> [he]
-    | he::tl -> he::(aux tl)
-    | [] -> assert (l2' = []) ; []
-  in
-   DirPath.make (List.rev (aux l1'))
 ;;
 
 let token_list_of_path uripath id tag =
@@ -462,29 +410,15 @@ Feedback.msg_debug (Pp.(++) (Pp.str "BUG: this subterm was not visited during th
            compute_result_if_eta_expansion_not_required
          =
           let subst,residual_args,uninst_vars =
-           let variables,basedir =
+           let variables =
              try
                let g,_(*XXX???*) = Termops.global_of_constr evar_map h in
                let sp = Nametab.path_of_global g in
-               let tag =
-                match g with
-                   Names.GlobRef.ConstructRef ((induri,_),_)
-                 | Names.GlobRef.IndRef (induri,_) ->
-                    Inductive induri
-                 | Names.GlobRef.VarRef id ->
-                    (* Invariant: variables are never cooked in Coq *)
-                    raise Not_found
-                 | Names.GlobRef.ConstRef kn -> Constant kn
-               in
-let res =
+(*let res =*)
                Dischargedhypsmap.get_discharged_hyps sp
-in Feedback.msg_warning (str ("@@ " ^ Libnames.string_of_path sp ^ " " ^ string_of_int (List.length res)));
-res
-,
-               get_module_path_of_full_path sp
-             with Not_found ->
-                (* no explicit substitution *)
-                [], Libnames.dirpath_of_string "dummy"
+(*in Feedback.msg_warning (str ("@@ " ^ Libnames.string_of_path sp ^ " " ^ string_of_int (List.length res)));
+res*)
+             with Not_found -> (* no explicit substitution *) []
            in
            (* returns a triple whose first element is  *)
            (* an explicit named substitution of "type" *)
@@ -499,13 +433,9 @@ res
              | he1::tl1,he2::tl2 ->
                 let subst,extra_args,uninst = get_explicit_subst tl1 tl2 in
                 let (he1_sp, he1_id) = Libnames.repr_path he1 in
-                let he1' = remove_module_dirpath_from_dirpath ~basedir he1_sp in
-(* Stampa S0.S1 su esempio senza modulo M in mezzo
-CErrors.user_err (str ("UFFA: " ^ Names.DirPath.to_string (fst (Libnames.repr_path he1)) ^ " ==> " ^ String.concat "/" (List.map Names.Id.to_string he1')));
-*)
                 let he1'' =
                  String.concat "/"
-                  (List.rev_map Id.to_string he1') ^ "/"
+                  (List.rev_map Id.to_string (DirPath.repr he1_sp)) ^ "/"
                  ^ (Id.to_string he1_id) ^ ".var"
                 in
                  (he1'',he2)::subst, extra_args, uninst

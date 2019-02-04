@@ -40,8 +40,7 @@ type context = constr hypothesis list
 type conjecture = Evar.t * context * constr
 type metasenv = conjecture list
 
-(* list of couples section path -- variables defined in that section *)
-type params = (string * uri list) list
+type params = uri list
 
 type obj =
    Constant of string *                            (* id,           *)
