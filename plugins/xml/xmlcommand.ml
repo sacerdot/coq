@@ -543,10 +543,13 @@ let _ =
 try (Printexc.record_backtrace true ;
 begin
      let s = "cic:" ^ uri_of_modpath mp in
-      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"ModuleType\">")
-     (*let me = Global.lookup_module mp in
-     print_module xml_library_root (Global.env ()) mp me
-     *)
+      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"ModuleType\">") ;
+     Cic2acic.register_mbids args (Lib.cwd ()) ;
+     List.iter (fun id ->
+       let mp = Names.ModPath.MPbound id in
+       let mb = Global.lookup_module mp in
+       print_module xml_library_root (*(Global.env ())*) mp mb
+     ) args
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
