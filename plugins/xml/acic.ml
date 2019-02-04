@@ -27,6 +27,7 @@ module CicHash =
 
 type id = string  (* the type of the (annotated) node identifiers *)
 type uri = string
+type relUri = string
 
 type 'constr context_entry =
    Decl of 'constr             (* Declaration *)
@@ -81,7 +82,7 @@ and ainductivefun =
  id * Id.t * int * aconstr * aconstr
 and acoinductivefun =
  id * Id.t * aconstr * aconstr
-and explicit_named_substitution = id option * (uri * aconstr) list
+and explicit_named_substitution = id option * (relUri * aconstr) list
 
 type acontext = (id * aconstr hypothesis) list
 type aconjecture = id * Evar.t * acontext * aconstr

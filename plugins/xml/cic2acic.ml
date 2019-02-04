@@ -433,12 +433,12 @@ res*)
              | he1::tl1,he2::tl2 ->
                 let subst,extra_args,uninst = get_explicit_subst tl1 tl2 in
                 let (he1_sp, he1_id) = Libnames.repr_path he1 in
-                let he1'' =
+                let rel_uri =
                  String.concat "/"
                   (List.rev_map Id.to_string (DirPath.repr he1_sp)) ^ "/"
                  ^ (Id.to_string he1_id) ^ ".var"
                 in
-                 (he1'',he2)::subst, extra_args, uninst
+                 (rel_uri,he2)::subst, extra_args, uninst
            in
             get_explicit_subst variables t'
           in
