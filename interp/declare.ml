@@ -327,8 +327,9 @@ let inductive_names sp kn mie =
       ([], 0) mie.mind_entry_inds
   in names
 
-let load_inductive i ((sp,kn),(_,mie)) =
+let load_inductive i ((sp,kn),(dhyps,mie)) =
   let names = inductive_names sp kn mie in
+  Dischargedhypsmap.set_discharged_hyps sp dhyps;
   List.iter (fun (sp, ref) -> Nametab.push (Nametab.Until i) sp ref ) names
 
 let open_inductive i ((sp,kn),(_,mie)) =
@@ -353,7 +354,8 @@ let discharge_inductive ((sp,kn),(dhyps,mie)) =
   let repl = replacement_context () in
   let info = section_segment_of_mutual_inductive mind in
   let sechyps = info.Lib.abstr_ctx in
-  Some (discharged_hyps kn sechyps,
+  let new_hyps = (discharged_hyps kn sechyps) @ dhyps in
+  Some (new_hyps,
         Discharge.process_inductive info repl mie)
 
 let dummy_one_inductive_entry mie = {
@@ -365,7 +367,7 @@ let dummy_one_inductive_entry mie = {
 }
 
 (* Hack to reduce the size of .vo: we keep only what load/open needs *)
-let dummy_inductive_entry (_,m) = ([],{
+let dummy_inductive_entry (dhyps,m) = (dhyps,{
   mind_entry_params = [];
   mind_entry_record = None;
   mind_entry_finite = Declarations.BiFinite;
