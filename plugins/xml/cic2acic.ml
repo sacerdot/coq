@@ -410,9 +410,18 @@ Feedback.msg_debug (Pp.(++) (Pp.str "BUG: this subterm was not visited during th
           let subst,residual_args,uninst_vars =
            let variables =
              try
-               let g,_(*XXX???*) = Termops.global_of_constr evar_map h in
-               let sp = Nametab.path_of_global g in
-(*let res =*)
+               let g,_ = Termops.global_of_constr evar_map h in
+               let g_block =
+                match g with
+                   Names.GlobRef.VarRef _
+                 | Names.GlobRef.ConstRef _ -> g
+                 | Names.GlobRef.IndRef (mind,_) ->
+                    Names.GlobRef.IndRef (mind,0)
+                 | Names.GlobRef.ConstructRef ((mind,_),_) ->
+                    Names.GlobRef.IndRef (mind,0) in
+               let sp = Nametab.path_of_global g_block in
+(*let res =
+Feedback.msg_warning (str ("@@? " ^ Libnames.string_of_path sp));*)
                Dischargedhypsmap.get_discharged_hyps sp
 (*in Feedback.msg_warning (str ("@@ " ^ Libnames.string_of_path sp ^ " " ^ string_of_int (List.length res)));
 res*)
