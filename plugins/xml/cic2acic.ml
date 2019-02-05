@@ -792,7 +792,7 @@ let acic_of_cic_context metasenv context t =
 ;;
 *)
 
-let acic_object_of_cic_object sigma obj =
+let acic_object_of_cic_object env sigma obj =
   let ids_to_terms = Hashtbl.create 503 in
   let constr_to_ids = Acic.CicHash.create 503 in
   let ids_to_father_ids = Hashtbl.create 503 in
@@ -806,11 +806,6 @@ let acic_object_of_cic_object sigma obj =
   let acic_term_of_cic_term_context' =
    acic_of_cic_context' true seed ids_to_terms constr_to_ids ids_to_father_ids
     ids_to_inner_sorts ids_to_inner_types in
-(*CSC: is this the right env to use? Hhmmm. There is a problem: in    *)
-(*CSC: Global.env () the object we are exporting is already defined,  *)
-(*CSC: either in the environment or in the named context (in the case *)
-(*CSC: of variables. Is this a problem?                               *)
-  let env = Global.env () in
   let acic_term_of_cic_term' ?fake_dependent_products =
    acic_term_of_cic_term_context' ?fake_dependent_products env [] sigma in
 (*CSC: the fresh_id is not stored anywhere. This _MUST_ be fixed using *)
