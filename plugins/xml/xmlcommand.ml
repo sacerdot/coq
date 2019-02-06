@@ -513,8 +513,8 @@ try (Printexc.record_backtrace true ;
 begin
      let s = "cic:" ^ uri_of_modpath mp in
       theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModuleType/\">") ;
-     let me = Global.lookup_module mp in
-     print_module xml_library_root (Global.env ()) mp me
+     let mtb = Global.lookup_modtype mp in
+     print_modtype xml_library_root (Global.env ()) mtb.mod_mp mtb.mod_type_alg mtb.mod_type mtb.mod_delta
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
