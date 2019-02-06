@@ -89,13 +89,13 @@ let unregister_mbids () =
   | _,map::stack -> mbid_to_ids := (map,stack)
 let mbid_to_ids mbid = Names.MBImap.find mbid (fst !mbid_to_ids)
 
-let rec uripath_of_modpath mp =
+let rec idlist_of_modpath mp =
  Names.ModPath.(match mp with
-   MPfile dp -> List.rev_map Id.to_string (DirPath.repr dp)
- | MPbound bid ->
-    let ids = mbid_to_ids bid in
-    List.map Id.to_string ids
- | MPdot (mp,l) -> uripath_of_modpath mp @ [Names.Label.to_string l])
+   MPfile dp -> List.rev (DirPath.repr dp)
+ | MPbound bid -> mbid_to_ids bid
+ | MPdot (mp,l) -> idlist_of_modpath mp @ [Label.to_id l])
+
+let uripath_of_modpath mp = List.map Id.to_string (idlist_of_modpath mp)
 
 let token_list_of_kernel_name tag =
  let id,uripath = match tag with

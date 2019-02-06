@@ -406,8 +406,8 @@ let rec print_functor xml_library_root ?(is_functor=false) fty fatom env mp (*lo
     let env = if is_functor then Modops.add_structure mp me delta env else env in
     fatom xml_library_root env mp (*locals*) me
   |MoreFunctor (mbid,mtb1,me2) ->
-    Cic2acic.register_mbids [mbid] (Lib.cwd ())(*XXX: bad! ???*) ;
-    (*XXX ignore(nametab_register_modparam mbid mtb1);*)
+    let ids = Cic2acic.idlist_of_modpath mp in
+    Cic2acic.register_mbids [mbid] (Names.DirPath.make (List.rev ids)) ;
     let mp1 = MPbound mbid in
     let env = Modops.add_module_type mp1 mtb1 env in
     fty xml_library_root env mp1 (*locals*) mtb1.mod_type_alg mtb1.mod_type mtb1.mod_delta ;
