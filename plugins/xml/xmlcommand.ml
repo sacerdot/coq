@@ -401,19 +401,17 @@ let show fn =
 
 (***** Module Printing ****)
 
-let rec print_functor xml_library_root ?(is_functor=false) fty fatom env mp (*locals*) delta = function
+let rec print_functor xml_library_root ?(is_functor=false) fty fatom env mp delta = function
   |NoFunctor me ->
     let env = if is_functor then Modops.add_structure mp me delta env else env in
-    fatom xml_library_root env mp (*locals*) me
+    fatom xml_library_root env mp me
   |MoreFunctor (mbid,mtb1,me2) ->
     let ids = Cic2acic.idlist_of_modpath mp in
     Cic2acic.register_mbids [mbid] (Names.DirPath.make (List.rev ids)) ;
     let mp1 = MPbound mbid in
     let env = Modops.add_module_type mp1 mtb1 env in
-    fty xml_library_root env mp1 (*locals*) mtb1.mod_type_alg mtb1.mod_type mtb1.mod_delta ;
-(*
-      let locals' = (mbid, get_new_id locals (MBId.to_id mbid))::locals in*)
-    print_functor xml_library_root ~is_functor:true fty fatom env mp (*locals'*) delta me2 ;
+    fty xml_library_root env mp1 mtb1.mod_type_alg mtb1.mod_type mtb1.mod_delta ;
+    print_functor xml_library_root ~is_functor:true fty fatom env mp delta me2 ;
     Cic2acic.unregister_mbids ()
 
 let rec print_body xml_library_root env mp (l,body) =
@@ -430,17 +428,17 @@ let rec print_body xml_library_root env mp (l,body) =
        print env (Globnames.IndRef (kn,0)) (kind_of_inductive env is_record kn)
         xml_library_root
 
-and print_structure xml_library_root env mp (*locals*) struc =
+and print_structure xml_library_root env mp struc =
   (*let env' = Option.map
     (Modops.add_structure mp struc Mod_subst.empty_delta_resolver) env in*) let env' = env in
   (*nametab_register_module_body mp struc ;*)
   List.iter (print_body xml_library_root env' mp) struc
 
-and print_modtype xml_library_root env mp (*locals*) mtb_mod_type_alg mtb_mod_type mtb_mod_delta =
+and print_modtype xml_library_root env mp mtb_mod_type_alg mtb_mod_type mtb_mod_delta =
  (* match mtb.mod_type_alg with
-  | Some me -> print_expression true env mp locals me
-  | None -> print_signature true env mp locals mtb.mod_type*)
- print_signature xml_library_root (*true*) env mp (*locals*) mtb_mod_type mtb_mod_delta
+  | Some me -> print_expression true env mp me
+  | None -> print_signature true env mp mtb.mod_type*)
+ print_signature xml_library_root (*true*) env mp mtb_mod_type mtb_mod_delta
 
 and print_signature xml_library_root env mp me delta =
  print_functor xml_library_root print_modtype print_structure env mp delta me
@@ -463,11 +461,6 @@ and print_module xml_library_root env mp mb =
   hv 0 (keyword "Module" ++ spc () ++ name ++ modtype ++ body)
 *)
   print_signature xml_library_root (*true*) env mp mb.mod_type mb.mod_delta
-
-let print_module xml_library_root env mp mb =
- (* States.with_state_protection
-    (fun mb -> eval_ppcmds (print_module xml_library_root env mp mb)) me*)
- print_module xml_library_root env mp mb
 
 let print_modtype_of_module xml_library_root env mp =
  let mb = Environ.lookup_module mp env in
