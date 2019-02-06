@@ -36,6 +36,8 @@ let uris_of_params hyps =
  ) hyps
 ;;
 
+let relUri_of_id_list l = String.concat "/" (List.rev_map Id.to_string l)
+
 (* FUNCTIONS TO PRINT A SINGLE OBJECT OF COQ *)
 
 let rec join_dirs cwd =
@@ -89,11 +91,22 @@ let library_dp = ref (Lib.library_dp ());; (* dummy value, always overwritten *)
 let theory_filename xml_library_root =
   match xml_library_root with
     None -> None  (* stdout *)
-  | Some xml_library_root' ->
+  | Some xml_library_root ->
      let toks = List.map Id.to_string (DirPath.repr !library_dp) in
      (* theory from A/B/C/F.v goes into A/B/C/F.theory *)
      let alltoks = List.rev toks in
-       Some (join_dirs xml_library_root' alltoks ^ ".theory")
+       Some (join_dirs xml_library_root alltoks ^ ".theory")
+
+let expr_filename of_ xml_library_root mp =
+  match xml_library_root with
+    None -> None  (* stdout *)
+  | Some xml_library_root ->
+     let suffix =
+      match of_ with
+         `Impl -> ".impl.expr"
+       | `MTImpl -> ".uffa.expr"
+       | `Type -> ".expr" in
+     Some (join_dirs xml_library_root (Cic2acic.uripath_of_modpath mp) ^ suffix)
 
 let print_object uri obj env sigma filename =
  (* function to pretty print and compress an XML file *)
@@ -238,9 +251,25 @@ let theory_buffer = Buffer.create 4000;;
 let theory_output_string ?(do_not_quote = false) s =
   (* prepare for coqdoc post-processing *)
   let s = if do_not_quote then s else "(** #"^s^"\n#*)\n" in
-  print_if_verbose s;
+   print_if_verbose s;
    Buffer.add_string theory_buffer s
-;;
+
+(* The current channel for .expr files *)
+let expr_buffer = Buffer.create 400;;
+
+let expr_output_string = Buffer.add_string expr_buffer
+
+let save_expr_buffer of_ xml_library_root mp =
+ let ofn = expr_filename of_ xml_library_root mp in
+  begin
+   match ofn with
+      None ->
+        Buffer.output_buffer stdout expr_buffer
+    | Some fn ->
+        let ch = open_out fn in
+        Buffer.output_buffer ch expr_buffer ;
+        close_out ch;
+  end
 
 let kind_of_inductive env isrecord kn =
  "DEFINITION",
@@ -406,22 +435,52 @@ let move_to_impl xml_library_root mp =
   let dir = filename_of_modpath xml_library_root mp in
    Unix.rename dir (dir^".impl")
 
-let rec print_functor xml_library_root ?(is_functor=false) fty fatom env mp delta = function
-  |NoFunctor me ->
-    let env = if is_functor then Modops.add_structure mp me delta env else env in
-    fatom xml_library_root env mp me
+let rec flatten_app mexpr l = match mexpr with
+  | MEapply (mexpr, arg) -> flatten_app mexpr (arg::l)
+  | MEident mp -> mp::l
+  | MEwith _ -> assert false
+
+let print_expression_body _xml_library_root _is_functor env mp mty _delta =
+ let rec to_xml =
+  function
+   | MEident kn -> "<MODULE uri=\"cic:" ^ uri_of_modpath kn ^ "\"/>"
+   | MEapply _ ->
+       let lapp = flatten_app mty [] in
+        "<APP>" ^
+         String.concat ""
+          (List.map (fun kn -> to_xml (MEident kn)) lapp) ^
+        "</APP>"
+   | MEwith(me,what) ->
+       "<WITH>\n" ^ to_xml me ^
+        (match what with
+            WithDef(idl,(c,_)) ->
+             let relUri = relUri_of_id_list idl in
+              "<DEFINITION relURI=\"" ^ relUri ^ "\">" ^
+               "???n"^
+              "</DEFINITION>"
+          | WithMod(idl,mp') ->
+             let relUri = relUri_of_id_list idl in
+             let to_ = "cic:" ^ uri_of_modpath mp' in
+              "<MODULE relURI=\"" ^ relUri ^ "\" to=\"" ^ to_ ^ "\"/>"
+        ) ^ "</WITH>"
+ in
+  expr_output_string (to_xml mty)
+
+let rec print_functor xml_library_root ?(is_functor=false) fty ftyend fatom env mp delta = function
+  |NoFunctor me -> fatom xml_library_root is_functor env mp me delta
   |MoreFunctor (mbid,mtb1,me2) ->
     let ids = Cic2acic.idlist_of_modpath mp in
     Cic2acic.register_mbids [mbid] (Names.DirPath.make (List.rev ids)) ;
     let mp1 = MPbound mbid in
     let env = Modops.add_module_type mp1 mtb1 env in
     fty xml_library_root env mp1 mtb1.mod_type_alg mtb1.mod_type mtb1.mod_delta ;
-    print_functor xml_library_root ~is_functor:true fty fatom env mp delta me2 ;
+    print_functor xml_library_root ~is_functor:true fty ftyend fatom env mp delta me2 ;
+    ftyend () ;
     Cic2acic.unregister_mbids ()
 
 let rec print_body xml_library_root env mp (l,body) =
   match body with
-    | SFBmodule mb -> print_module xml_library_root env mb.mod_mp mb
+    | SFBmodule mb -> print_module ~struct_already_printed:false xml_library_root env mb.mod_mp mb
     | SFBmodtype mtb ->
        let env = Modops.add_module (Modops.module_body_of_type mtb.mod_mp mtb) env in
        print_modtype xml_library_root env mtb.mod_mp mtb.mod_type_alg mtb.mod_type mtb.mod_delta
@@ -434,46 +493,46 @@ let rec print_body xml_library_root env mp (l,body) =
        print env (Globnames.IndRef (kn,0)) (kind_of_inductive env is_record kn)
         xml_library_root
 
-and print_structure xml_library_root env mp struc =
-  (*let env' = Option.map
-    (Modops.add_structure mp struc Mod_subst.empty_delta_resolver) env in*) let env' = env in
-  (*nametab_register_module_body mp struc ;*)
-  List.iter (print_body xml_library_root env' mp) struc
+and print_structure xml_library_root is_functor env mp struc delta =
+  let env =
+   if is_functor then Modops.add_structure mp struc delta env else env in
+  List.iter (print_body xml_library_root env mp) struc
 
 and print_modtype xml_library_root env mp mtb_mod_type_alg mtb_mod_type mtb_mod_delta =
- (* match mtb.mod_type_alg with
-  | Some me -> print_expression true env mp me
-  | None -> print_signature true env mp mtb.mod_type*)
- print_signature xml_library_root (*true*) env mp mtb_mod_type mtb_mod_delta
+ (match mtb_mod_type_alg with
+     None -> ()
+   | Some alg -> print_expression `MTImpl xml_library_root env mp alg);
+ print_signature xml_library_root env mp mtb_mod_type mtb_mod_delta
 
 and print_signature xml_library_root env mp me delta =
- print_functor xml_library_root print_modtype print_structure env mp delta me
+ print_functor xml_library_root print_modtype (fun () -> ()) print_structure env mp delta me
 
-and print_expression' _ _ _ _ = ()
+and print_expression_abstr _xml_library_root _env mp _mtb_mod_type_alg _mtb_mod_type _mtb_mod_delta =
+ let uri = "cic:" ^ uri_of_modpath mp in
+ expr_output_string ("<ABS uri=\"" ^ uri ^ "\">")
 
-and print_module xml_library_root env mp mb =
+and print_expression_abstr_end () =
+ expr_output_string "</ABS>"
+
+and print_expression of_ xml_library_root env mp expr =
+ Buffer.reset expr_buffer ;
+ print_functor () print_expression_abstr print_expression_abstr_end print_expression_body env mp () expr ;
+ save_expr_buffer of_ xml_library_root mp
+
+and print_module ~struct_already_printed xml_library_root env mp mb =
   (match mb.mod_expr with
-    | Algebraic me -> print_expression' false env mp me
+    | Algebraic me -> print_expression `Impl xml_library_root env mp me
     | Struct sign ->
-       print_signature xml_library_root env mp sign mb.mod_delta ;
+       if not struct_already_printed then
+        print_signature xml_library_root env mp sign mb.mod_delta ;
        move_to_impl xml_library_root mp
     | Abstract -> ()
     | FullStruct -> ());
-(*
-  let modtype = match mb.mod_expr, mb.mod_type_alg with
-    | FullStruct, _ -> mt ()
-    | _, Some ty -> brk (1,1) ++ str": " ++ print_expression' true env mp ty
-    | _, _ -> brk (1,1) ++ str": " ++ print_signature' true env mp mb.mod_type
-  in
-  hv 0 (keyword "Module" ++ spc () ++ name ++ modtype ++ body)
-*)
-  print_signature xml_library_root (*true*) env mp mb.mod_type mb.mod_delta
-
-let print_modtype_of_module xml_library_root env mp =
- let mb = Environ.lookup_module mp env in
- if mb.mod_expr <> FullStruct then begin move_to_impl xml_library_root mp ;
-  print_modtype xml_library_root env mp mb.mod_type_alg mb.mod_type mb.mod_delta
- end
+  (match mb.mod_type_alg with
+      None -> ()
+    | Some alg -> print_expression `Type xml_library_root env mp alg);
+  if not (struct_already_printed && mb.mod_expr = FullStruct) then
+   print_signature xml_library_root env mp mb.mod_type mb.mod_delta
 
 (***** End of Module Printing ****)
 
@@ -498,7 +557,7 @@ begin
      let s = "cic:" ^ uri_of_modpath mp in
       theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModule\"/>") ;
      let me = Global.lookup_module mp in
-     print_module xml_library_root (Global.env ()) mp me
+     print_module ~struct_already_printed:false xml_library_root (Global.env ()) mp me
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
@@ -528,7 +587,7 @@ begin
      List.iter (fun id ->
        let mp = Names.ModPath.MPbound id in
        let mb = Global.lookup_module mp in
-       print_module xml_library_root (Global.env ()) mp mb
+       print_module ~struct_already_printed:false xml_library_root (Global.env ()) mp mb
      ) args
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
@@ -540,7 +599,8 @@ let _ =
 try (Printexc.record_backtrace true ;
 begin
      theory_output_string ("</ht:MODULE>") ;
-     print_modtype_of_module xml_library_root (Global.env ()) mp ;
+     let mb = Environ.lookup_module mp (Global.env ()) in
+     print_module ~struct_already_printed:true xml_library_root (Global.env ()) mp mb ;
      Cic2acic.unregister_mbids ()
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
@@ -557,7 +617,7 @@ begin
      List.iter (fun id ->
        let mp = Names.ModPath.MPbound id in
        let mb = Global.lookup_module mp in
-       print_module xml_library_root (Global.env ()) mp mb
+       print_module ~struct_already_printed:false xml_library_root (Global.env ()) mp mb
      ) args
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
