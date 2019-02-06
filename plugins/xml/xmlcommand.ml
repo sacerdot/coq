@@ -401,6 +401,11 @@ let show fn =
 
 (***** Module Printing ****)
 
+let move_to_impl xml_library_root mp =
+ if xml_library_root <> None then
+  let dir = filename_of_modpath xml_library_root mp in
+   Unix.rename dir (dir^".impl")
+
 let rec print_functor xml_library_root ?(is_functor=false) fty fatom env mp delta = function
   |NoFunctor me ->
     let env = if is_functor then Modops.add_structure mp me delta env else env in
@@ -418,6 +423,7 @@ let rec print_body xml_library_root env mp (l,body) =
   match body with
     | SFBmodule mb -> print_module xml_library_root env mb.mod_mp mb
     | SFBmodtype mtb ->
+       let env = Modops.add_module (Modops.module_body_of_type mtb.mod_mp mtb) env in
        print_modtype xml_library_root env mtb.mod_mp mtb.mod_type_alg mtb.mod_type mtb.mod_delta
     | SFBconst _ ->
        let kn = Constant.make2 mp l in
@@ -443,16 +449,17 @@ and print_modtype xml_library_root env mp mtb_mod_type_alg mtb_mod_type mtb_mod_
 and print_signature xml_library_root env mp me delta =
  print_functor xml_library_root print_modtype print_structure env mp delta me
 
+and print_expression' _ _ _ _ = ()
+
 and print_module xml_library_root env mp mb =
+  (match mb.mod_expr with
+    | Algebraic me -> print_expression' false env mp me
+    | Struct sign ->
+       print_signature xml_library_root env mp sign mb.mod_delta ;
+       move_to_impl xml_library_root mp
+    | Abstract -> ()
+    | FullStruct -> ());
 (*
-  let name = print_modpath [] mp in
-  let pr_equals = spc () ++ str ":= " in
-  let body = match mb.mod_expr with
-    | Abstract -> mt()
-    | Algebraic me -> pr_equals ++ print_expression' false env mp me
-    | Struct sign -> pr_equals ++ print_signature' false env mp sign
-    | FullStruct -> pr_equals ++ print_signature' false env mp mb.mod_type
-  in
   let modtype = match mb.mod_expr, mb.mod_type_alg with
     | FullStruct, _ -> mt ()
     | _, Some ty -> brk (1,1) ++ str": " ++ print_expression' true env mp ty
@@ -464,10 +471,7 @@ and print_module xml_library_root env mp mb =
 
 let print_modtype_of_module xml_library_root env mp =
  let mb = Environ.lookup_module mp env in
- if mb.mod_expr <> FullStruct then begin
-  if xml_library_root <> None then
-   let dir = filename_of_modpath xml_library_root mp in
-    Unix.rename dir (dir^".impl") ;
+ if mb.mod_expr <> FullStruct then begin move_to_impl xml_library_root mp ;
   print_modtype xml_library_root env mp mb.mod_type_alg mb.mod_type mb.mod_delta
  end
 
@@ -492,7 +496,7 @@ let _ =
 try (Printexc.record_backtrace true ;
 begin
      let s = "cic:" ^ uri_of_modpath mp in
-      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModule/\">") ;
+      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModule\"/>") ;
      let me = Global.lookup_module mp in
      print_module xml_library_root (Global.env ()) mp me
     end)
@@ -505,9 +509,10 @@ let _ =
 try (Printexc.record_backtrace true ;
 begin
      let s = "cic:" ^ uri_of_modpath mp in
-      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModuleType/\">") ;
+      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModuleType\">") ;
      let mtb = Global.lookup_modtype mp in
-     print_modtype xml_library_root (Global.env ()) mtb.mod_mp mtb.mod_type_alg mtb.mod_type mtb.mod_delta
+     print_modtype xml_library_root (Global.env ()) mtb.mod_mp mtb.mod_type_alg mtb.mod_type mtb.mod_delta ;
+     theory_output_string ("</ht:MODULE>") ;
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
@@ -535,8 +540,6 @@ let _ =
 try (Printexc.record_backtrace true ;
 begin
      theory_output_string ("</ht:MODULE>") ;
-     (*let me = Global.lookup_module mp in
-     print_module xml_library_root (Global.env ()) mp me *)
      print_modtype_of_module xml_library_root (Global.env ()) mp ;
      Cic2acic.unregister_mbids ()
     end)
@@ -566,9 +569,6 @@ let _ =
 try (Printexc.record_backtrace true ;
 begin
      theory_output_string ("</ht:MODULE>")
-     (*let me = Global.lookup_module mp in
-     print_module xml_library_root (Global.env ()) mp me
-     *)
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
