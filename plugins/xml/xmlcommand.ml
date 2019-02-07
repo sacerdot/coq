@@ -246,7 +246,7 @@ let mk_inductive_obj env sp mib packs nparams hyps finite =
 ;;
 
 (* The current channel for .theory files *)
-let theory_buffer = Buffer.create 4000;;
+let theory_buffer = Buffer.create 4000
 
 let theory_output_string ?(do_not_quote = false) s =
   (* prepare for coqdoc post-processing *)
@@ -255,7 +255,7 @@ let theory_output_string ?(do_not_quote = false) s =
    Buffer.add_string theory_buffer s
 
 (* The current channel for .expr files *)
-let expr_buffer = Buffer.create 400;;
+let expr_buffer = Buffer.create 400
 
 let expr_output_string = Buffer.add_string expr_buffer
 
@@ -451,7 +451,7 @@ let print_expression_body _xml_library_root _is_functor env mp mty _delta =
           (List.map (fun kn -> to_xml (MEident kn)) lapp) ^
         "</APP>"
    | MEwith(me,what) ->
-       "<WITH>\n" ^ to_xml me ^
+       "<WITH>" ^ to_xml me ^
         (match what with
             WithDef(idl,(c,_)) ->
              let relUri = relUri_of_id_list idl in
