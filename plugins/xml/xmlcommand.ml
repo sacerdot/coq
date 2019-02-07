@@ -440,7 +440,7 @@ let rec flatten_app mexpr l = match mexpr with
   | MEident mp -> mp::l
   | MEwith _ -> assert false
 
-let print_expression_body _xml_library_root _is_functor env mp mty _delta =
+let print_expression_body _xml_library_root _to_be_declared env mp mty _delta =
  let rec to_xml =
   function
    | MEident kn -> "<MODULE uri=\"cic:" ^ uri_of_modpath kn ^ "\"/>"
@@ -466,15 +466,15 @@ let print_expression_body _xml_library_root _is_functor env mp mty _delta =
  in
   expr_output_string (to_xml mty)
 
-let rec print_functor xml_library_root ?(is_functor=false) fty ftyend fatom env mp delta = function
-  |NoFunctor me -> fatom xml_library_root is_functor env mp me delta
+let rec print_functor xml_library_root ~to_be_declared fty ftyend fatom env mp delta = function
+  |NoFunctor me -> fatom xml_library_root to_be_declared env mp me delta
   |MoreFunctor (mbid,mtb1,me2) ->
     let ids = Cic2acic.idlist_of_modpath mp in
     Cic2acic.register_mbids [mbid] (Names.DirPath.make (List.rev ids)) ;
     let mp1 = MPbound mbid in
     let env = Modops.add_module_type mp1 mtb1 env in
     fty xml_library_root env mp1 mtb1.mod_type_alg mtb1.mod_type mtb1.mod_delta ;
-    print_functor xml_library_root ~is_functor:true fty ftyend fatom env mp delta me2 ;
+    print_functor xml_library_root ~to_be_declared:true fty ftyend fatom env mp delta me2 ;
     ftyend () ;
     Cic2acic.unregister_mbids ()
 
@@ -493,19 +493,19 @@ let rec print_body xml_library_root env mp (l,body) =
        print env (Globnames.IndRef (kn,0)) (kind_of_inductive env is_record kn)
         xml_library_root
 
-and print_structure xml_library_root is_functor env mp struc delta =
+and print_structure xml_library_root to_be_declared env mp struc delta =
   let env =
-   if is_functor then Modops.add_structure mp struc delta env else env in
+   if to_be_declared then Modops.add_structure mp struc delta env else env in
   List.iter (print_body xml_library_root env mp) struc
 
 and print_modtype xml_library_root env mp mtb_mod_type_alg mtb_mod_type mtb_mod_delta =
  (match mtb_mod_type_alg with
      None -> ()
    | Some alg -> print_expression `MTImpl xml_library_root env mp alg);
- print_signature xml_library_root env mp mtb_mod_type mtb_mod_delta
+ print_signature xml_library_root ~to_be_declared:true env mp mtb_mod_type mtb_mod_delta
 
-and print_signature xml_library_root env mp me delta =
- print_functor xml_library_root print_modtype (fun () -> ()) print_structure env mp delta me
+and print_signature xml_library_root ~to_be_declared env mp me delta =
+ print_functor xml_library_root ~to_be_declared print_modtype (fun () -> ()) print_structure env mp delta me
 
 and print_expression_abstr _xml_library_root _env mp _mtb_mod_type_alg _mtb_mod_type _mtb_mod_delta =
  let uri = "cic:" ^ uri_of_modpath mp in
@@ -516,7 +516,7 @@ and print_expression_abstr_end () =
 
 and print_expression of_ xml_library_root env mp expr =
  Buffer.reset expr_buffer ;
- print_functor () print_expression_abstr print_expression_abstr_end print_expression_body env mp () expr ;
+ print_functor () ~to_be_declared:false print_expression_abstr print_expression_abstr_end print_expression_body env mp () expr ;
  save_expr_buffer of_ xml_library_root mp
 
 and print_module ~struct_already_printed xml_library_root env mp mb =
@@ -524,7 +524,7 @@ and print_module ~struct_already_printed xml_library_root env mp mb =
     | Algebraic me -> print_expression `Impl xml_library_root env mp me
     | Struct sign ->
        if not struct_already_printed then
-        print_signature xml_library_root env mp sign mb.mod_delta ;
+        print_signature xml_library_root ~to_be_declared:false env mp sign mb.mod_delta ;
        move_to_impl xml_library_root mp
     | Abstract -> ()
     | FullStruct -> ());
@@ -532,7 +532,7 @@ and print_module ~struct_already_printed xml_library_root env mp mb =
       None -> ()
     | Some alg -> print_expression `Type xml_library_root env mp alg);
   if not (struct_already_printed && mb.mod_expr = FullStruct) then
-   print_signature xml_library_root env mp mb.mod_type mb.mod_delta
+   print_signature xml_library_root ~to_be_declared:false env mp mb.mod_type mb.mod_delta
 
 (***** End of Module Printing ****)
 
