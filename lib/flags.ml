@@ -57,8 +57,7 @@ let in_toplevel = ref false
 
 let profile = false
 
-let xml_export = ref false
-
+let xml_export = ref (Sys.getenv_opt "COQ_XML_LIBRARY_ROOT" <> None)
 
 let raw_print = ref false
 
