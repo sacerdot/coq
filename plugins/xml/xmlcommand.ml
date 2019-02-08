@@ -711,7 +711,7 @@ let _ =
             CErrors.anomaly (Pp.str ("Error executing \"" ^ cmd ^ "\""))
           in
            command (coqdoc^options^" -o "^fn^".xml "^fn^".v");
-           command ("rm -f"^fn^".v " ^ Filename.dirname fn ^"/" ^ "coqdoc.css");
+           command ("rm -f "^fn^".v " ^ Filename.dirname fn ^"/" ^ "coqdoc.css");
            print_string("\nWriting on file \"" ^ fn ^ ".xml\" was successful\n"))
        ofn)
 ;;
