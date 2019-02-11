@@ -104,9 +104,9 @@ let expr_filename of_ xml_library_root mp =
      let suffix =
       match of_ with
          `Impl -> ".impl.expr"
-       | `MTImpl -> ".uffa.expr"
+       | `MTImpl -> ".expr"
        | `Type -> ".expr" in
-     Some (join_dirs xml_library_root (Cic2acic.uripath_of_modpath mp) ^ suffix)
+     Some (join_dirs xml_library_root (Cic2acic.uripath_of_modpath mp) ^ suffix ^ ".xml")
 
 let print_object uri obj env sigma filename =
  (* function to pretty print and compress an XML file *)
