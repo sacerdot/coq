@@ -66,4 +66,4 @@
 <!ELEMENT ht:VARIABLE (Variable)>
 <!ATTLIST ht:VARIABLE
           uri CDATA #REQUIRED
-          as (Assumption|Hypothesis|LocalDefinition|LocalFact) #REQUIRED>
+          as (Assumption|Hypothesis|LocalDefinition|LocalFact|LocalLet) #REQUIRED>

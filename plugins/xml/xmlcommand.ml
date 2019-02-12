@@ -271,27 +271,25 @@ let save_expr_buffer of_ xml_library_root mp =
         close_out ch;
   end
 
-let kind_of_inductive env isrecord kn =
+let kind_of_inductive env isrecord kn () =
  "DEFINITION",
  if (fst (Inductive.lookup_mind_specif env (kn,0))).Declarations.mind_finite <> CoFinite
  then if isrecord then "Record" else "Inductive"
  else "CoInductive"
 ;;
 
-let kind_of_variable id =
+let kind_of_variable id () =
   match Decls.variable_kind id with
     | IsAssumption Definitional -> "VARIABLE","Assumption"
     | IsAssumption Logical -> "VARIABLE","Hypothesis"
     | IsAssumption Conjectural -> "VARIABLE","Conjecture"
     | IsDefinition Definition -> "VARIABLE","LocalDefinition"
-    | IsDefinition Let ->
-        Feedback.msg_warning (Pp.str "Let not supported in dtd (used LocalDefinition instead)");
-        "VARIABLE","LocalDefinition"
+    | IsDefinition Let -> "VARIABLE","LocalLet"
     | IsProof _ -> "VARIABLE","LocalFact"
     | _ -> CErrors.anomaly (Pp.str "Unsupported variable kind")
 ;;
 
-let kind_of_constant kn =
+let kind_of_constant kn () =
 try (
   match Decls.constant_kind kn with
     | IsAssumption Definitional -> "AXIOM","Declaration"
@@ -313,8 +311,7 @@ try (
     | IsProof (Theorem|Lemma|Corollary|Fact|Remark|Property|Proposition as thm) ->
         "THEOREM",Kindops.string_of_theorem_kind thm
 ) with Not_found ->
-   Feedback.msg_warning (Pp.str ("CRITICAL Looking for " ^ Names.Constant.to_string kn));
-   "THEOREM","UNKNOWN"
+   CErrors.anomaly (Pp.str ("CRITICAL Looking for " ^ Names.Constant.to_string kn))
 ;;
 
 let kind_of_global env r =
@@ -378,7 +375,7 @@ let print ~in_theory env glob_ref kind xml_library_root =
   in
   let fn = filename_of_path xml_library_root tag in
   let uri = Cic2acic.uri_of_kernel_name tag in
-  if in_theory then print_object_kind uri kind;
+  if in_theory then print_object_kind uri (kind ());
   print_object uri obj env Evd.empty fn
 ;;
 
