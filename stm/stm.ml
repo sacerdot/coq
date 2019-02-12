@@ -2992,6 +2992,13 @@ let stop_worker n = Slaves.cancel_worker n
 *)
 exception End_of_input
 
+(** XML output hooks *)
+
+let (f_xml_parse_gallina, xml_parse_gallina) = Hook.make ~default:ignore ()
+let if_xml f x = if !Flags.xml_export then f x else ()
+
+(** End of XML output hooks *)
+
 let parse_sentence ~doc sid pa =
   (* XXX: Should this restore the previous state?
      Using reach here to try to really get to the
@@ -3015,7 +3022,9 @@ let parse_sentence ~doc sid pa =
       try
         match Pcoq.Entry.parse Pvernac.main_entry pa with
         | None            -> raise End_of_input
-        | Some (loc, cmd) -> CAst.make ~loc cmd
+        | Some (loc, cmd) ->
+           ignore (if_xml (Hook.get f_xml_parse_gallina) loc);
+           CAst.make ~loc cmd
       with e when CErrors.noncritical e ->
         let (e, info) = CErrors.push e in
         Exninfo.iraise (e, info))

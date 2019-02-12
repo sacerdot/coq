@@ -297,3 +297,6 @@ val stm_debug : bool ref
 type document
 val backup : unit -> document
 val restore : document -> unit
+
+(** Hooks for XML output *)
+val xml_parse_gallina : (Loc.t -> unit) Hook.t

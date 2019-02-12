@@ -40,6 +40,19 @@ let relUri_of_id_list l = String.concat "/" (List.rev_map Id.to_string l)
 
 (* FUNCTIONS TO PRINT A SINGLE OBJECT OF COQ *)
 
+let loc = ref None
+let _ = Hook.set Stm.xml_parse_gallina (fun l -> loc := Some l)
+let get_loc () =
+ match !loc with
+    None -> assert false
+  | Some l ->
+(*
+     let source =
+      match l.Loc.fname with
+         Loc.InFile s -> s
+       | Loc.ToplevelInput -> "(toplevel)" in*)
+     " line=\"" (*^ source*) ^ string_of_int l.Loc.line_nb ^ "\""
+
 let rec join_dirs cwd =
  function
     []  -> cwd
@@ -327,7 +340,7 @@ let kind_of_global env r =
 
 let print_object_kind uri (xmltag,variation) =
   let s =
-    Printf.sprintf "<ht:%s uri=\"%s\" as=\"%s\"/>\n" xmltag uri variation
+    Printf.sprintf "<ht:%s uri=\"%s\" as=\"%s\"%s/>\n" xmltag uri variation (get_loc ())
   in
   theory_output_string s
 ;;
@@ -525,7 +538,7 @@ let _ =
 try (Printexc.record_backtrace true ;
 begin
      let s = "cic:" ^ uri_of_modpath mp in
-      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModule\"/>") ;
+      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModule\"" ^ get_loc () ^ "/>") ;
      let me = Global.lookup_module mp in
      print_module ~struct_already_printed:false xml_library_root (Global.env ()) mp me
     end)
@@ -538,7 +551,7 @@ let _ =
 try (Printexc.record_backtrace true ;
 begin
      let s = "cic:" ^ uri_of_modpath mp in
-      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModuleType\"/>") ;
+      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModuleType\"" ^ get_loc () ^ "/>") ;
      let mtb = Global.lookup_modtype mp in
      print_modtype xml_library_root (Global.env ()) mtb.mod_mp mtb.mod_type_alg mtb.mod_type mtb.mod_delta ;
     end)
@@ -551,7 +564,7 @@ let _ =
 try (Printexc.record_backtrace true ;
 begin
      let s = "cic:" ^ uri_of_modpath mp in
-      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"Module\">") ;
+      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"Module\"" ^ get_loc () ^ ">") ;
      Cic2acic.register_mbids args (Lib.cwd ()) ;
      List.iter (fun id ->
        let mp = Names.ModPath.MPbound id in
@@ -581,7 +594,7 @@ let _ =
 try (Printexc.record_backtrace true ;
 begin
      let s = "cic:" ^ uri_of_modpath mp in
-      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"ModuleType\">") ;
+      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"ModuleType\"" ^ get_loc () ^ ">") ;
      Cic2acic.register_mbids args (Lib.cwd ()) ;
      List.iter (fun id ->
        let mp = Names.ModPath.MPbound id in
@@ -694,7 +707,7 @@ let _ =
   Hook.set Lib.xml_open_section
     (fun _ ->
       let s = "cic:" ^ uri_of_dirpath (Lib.cwd ()) in
-      theory_output_string ("<ht:SECTION uri=\""^s^"\">"))
+      theory_output_string ("<ht:SECTION uri=\""^s^"\"" ^ get_loc () ^ ">"))
 ;;
 
 let _ =
