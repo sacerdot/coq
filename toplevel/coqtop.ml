@@ -187,7 +187,7 @@ let ensure_exists f =
 
 (* XML output hooks *)
 let (f_xml_start_library, xml_start_library) = Hook.make ~default:ignore ()
-let (f_xml_end_library, xml_end_library) = Hook.make ~default:ignore ()
+let (f_xml_end_library, xml_end_library) = Hook.make ~default:(fun ~v_filepath -> ()) ()
 
 (* Compile a vernac file *)
 let compile cur_feeder opts ~echo ~f_in ~f_out =
@@ -242,8 +242,8 @@ let compile cur_feeder opts ~echo ~f_in ~f_out =
       Aux_file.record_in_aux_at "vo_compile_time"
         (Printf.sprintf "%.3f" (wall_clock2 -. wall_clock1));
       Aux_file.stop_aux_file ();
-      if !Flags.xml_export then Hook.get f_xml_end_library ();
-      Dumpglob.end_dump_glob ()
+      Dumpglob.end_dump_glob ();
+      if !Flags.xml_export then Hook.get f_xml_end_library ~v_filepath:long_f_dot_v
 
   | BuildVio ->
       Flags.record_aux_file := false;

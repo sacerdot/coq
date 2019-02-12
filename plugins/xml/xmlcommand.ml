@@ -657,7 +657,7 @@ let _ =
 
 let _ =
   Hook.set Coqtop.xml_start_library
-   (function () ->
+   (fun () ->
      library_dp := Lib.library_dp ();
      Buffer.reset theory_buffer;
      theory_output_string "<?xml version=\"1.0\" encoding=\"latin1\"?>\n";
@@ -675,7 +675,7 @@ let _ =
 
 let _ =
   Hook.set Coqtop.xml_end_library
-   (function () ->
+   (fun ~v_filepath ->
       theory_output_string "</body>\n</html>\n";
       let ofn = theory_filename xml_library_root in
        begin
@@ -698,7 +698,18 @@ let _ =
            command (coqdoc^options^" -o "^fn^".xml "^fn^".v");
            command ("rm -f "^fn^".v " ^ Filename.dirname fn ^"/" ^ "coqdoc.css");
            print_string("\nWriting on file \"" ^ fn ^ ".xml\" was successful\n"))
-       ofn)
+       ofn;
+     (match xml_library_root with
+         None -> ()
+       | Some xml_library_root ->
+         let toks = List.tl(List.map Id.to_string (DirPath.repr !library_dp)) in
+         (* theory from A/B/C/F.v goes into A/B/C/F.theory *)
+         let alltoks = List.rev toks in
+         let out_path = join_dirs xml_library_root alltoks in
+         let glob_filepath = Filename.chop_suffix v_filepath ".v" ^ ".glob" in
+         let _ = Unix.system ("cp \"" ^ v_filepath ^ "\" \"" ^ out_path ^ "/" ^ Filename.basename v_filepath ^ "\"") in
+         let _ = Unix.system ("cp \"" ^ glob_filepath ^ "\" \"" ^ out_path ^ "/" ^ Filename.basename glob_filepath ^ "\"") in
+         ()))
 ;;
 
 let _ = Hook.set CLexer.xml_output_comment (theory_output_string ~do_not_quote:true) ;;

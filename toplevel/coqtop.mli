@@ -10,8 +10,8 @@
 
 
 (** Set XML hooks *)
-val xml_start_library : (unit -> unit) Hook.t
-val xml_end_library   : (unit -> unit) Hook.t
+val xml_start_library   : (unit -> unit) Hook.t
+val xml_end_library : (v_filepath:string -> unit) Hook.t
 
 (** Definition of custom toplevels.
     [init] is used to do custom command line argument parsing.
