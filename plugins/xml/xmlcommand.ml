@@ -125,7 +125,7 @@ let print_object uri obj env sigma filename =
        in
         escape fn 0
       in
-       ()(*ignore (Unix.system ("gzip " ^ fn' ^ ".xml"))*)
+       ignore (Unix.system ("gzip " ^ fn' ^ ".xml"))
  in
   let (annobj,_,constr_to_ids,_,ids_to_inner_sorts,ids_to_inner_types,_,_) =
    Cic2acic.acic_object_of_cic_object env sigma obj in
