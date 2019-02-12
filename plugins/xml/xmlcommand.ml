@@ -125,7 +125,7 @@ let print_object uri obj env sigma filename =
        in
         escape fn 0
       in
-       ignore (Unix.system ("gzip " ^ fn' ^ ".xml"))
+       ()(*ignore (Unix.system ("gzip " ^ fn' ^ ".xml"))*)
  in
   let (annobj,_,constr_to_ids,_,ids_to_inner_sorts,ids_to_inner_types,_,_) =
    Cic2acic.acic_object_of_cic_object env sigma obj in
@@ -296,51 +296,22 @@ try (
   match Decls.constant_kind kn with
     | IsAssumption Definitional -> "AXIOM","Declaration"
     | IsAssumption Logical -> "AXIOM","Axiom"
-    | IsAssumption Conjectural ->
-        Feedback.msg_warning (Pp.str "Conjecture not supported in dtd (used Declaration instead)");
-        "AXIOM","Declaration"
+    | IsAssumption Conjectural -> "AXIOM","Conjecture"
     | IsDefinition Definition -> "DEFINITION","Definition"
-    | IsDefinition Let ->
-        Feedback.msg_warning (Pp.str "Let not supported in dtd (used Definition instead)");
-        "DEFINITION","Definition"
-    | IsDefinition Example ->
-        Feedback.msg_warning (Pp.str "Example not supported in dtd (used Definition instead)");
-        "DEFINITION","Definition"
-    | IsDefinition Coercion ->
-        Feedback.msg_warning (Pp.str "Coercion not supported in dtd (used Definition instead)");
-        "DEFINITION","Definition"
-    | IsDefinition SubClass ->
-        Feedback.msg_warning (Pp.str "SubClass not supported in dtd (used Definition instead)");
-        "DEFINITION","Definition"
-    | IsDefinition CanonicalStructure ->
-        Feedback.msg_warning (Pp.str "CanonicalStructure not supported in dtd (used Definition instead)");
-        "DEFINITION","Definition"
-    | IsDefinition Fixpoint ->
-        Feedback.msg_warning (Pp.str "Fixpoint not supported in dtd (used Definition instead)");
-        "DEFINITION","Definition"
-    | IsDefinition CoFixpoint ->
-        Feedback.msg_warning (Pp.str "CoFixpoint not supported in dtd (used Definition instead)");
-        "DEFINITION","Definition"
-    | IsDefinition Scheme ->
-        Feedback.msg_warning (Pp.str "Scheme not supported in dtd (used Definition instead)");
-        "DEFINITION","Definition"
-    | IsDefinition StructureComponent ->
-        Feedback.msg_warning (Pp.str "StructureComponent not supported in dtd (used Definition instead)");
-        "DEFINITION","Definition"
-    | IsDefinition IdentityCoercion ->
-        Feedback.msg_warning (Pp.str "IdentityCoercion not supported in dtd (used Definition instead)");
-        "DEFINITION","Definition"
-    | IsDefinition Instance ->
-        Feedback.msg_warning (Pp.str "Instance not supported in dtd (used Definition instead)");
-        "DEFINITION","Definition"
-    | IsDefinition Method ->
-        Feedback.msg_warning (Pp.str "Method not supported in dtd (used Definition instead)");
-        "DEFINITION","Definition"
-    | IsProof (Theorem|Lemma|Corollary|Fact|Remark as thm) ->
+    | IsDefinition Let -> "DEFINITION","Let"
+    | IsDefinition Example -> "DEFINITION","Example"
+    | IsDefinition Coercion -> "DEFINITION","Coercion"
+    | IsDefinition SubClass -> "DEFINITION","SubClass"
+    | IsDefinition CanonicalStructure -> "DEFINITION","CanonicalStructure"
+    | IsDefinition Fixpoint -> "DEFINITION","Fixpoint"
+    | IsDefinition CoFixpoint -> "DEFINITION","CoFixpoint"
+    | IsDefinition Scheme -> "DEFINITION","Scheme"
+    | IsDefinition StructureComponent -> "DEFINITION","Projection"
+    | IsDefinition IdentityCoercion -> "DEFINITION","IdentityCoercion"
+    | IsDefinition Instance -> "DEFINITION","Instance"
+    | IsDefinition Method -> "DEFINITION","Method"
+    | IsProof (Theorem|Lemma|Corollary|Fact|Remark|Property|Proposition as thm) ->
         "THEOREM",Kindops.string_of_theorem_kind thm
-    | IsProof _ ->
-        Feedback.msg_warning (Pp.str "Unsupported theorem kind (used Theorem instead)");
-        "THEOREM",Kindops.string_of_theorem_kind Theorem
 ) with Not_found ->
    Feedback.msg_warning (Pp.str ("CRITICAL Looking for " ^ Names.Constant.to_string kn));
    "THEOREM","UNKNOWN"
@@ -372,7 +343,7 @@ let print_object_kind uri (xmltag,variation) =
 (* Note: it is printed only (and directly) the most cooked available      *)
 (*       form of the definition (all the parameters are                   *)
 (*       lambda-abstracted, but the object can still refer to variables)  *)
-let print env glob_ref kind xml_library_root =
+let print ~in_theory env glob_ref kind xml_library_root =
   let tag,obj =
    match glob_ref with
       Globnames.VarRef id ->
@@ -407,13 +378,14 @@ let print env glob_ref kind xml_library_root =
   in
   let fn = filename_of_path xml_library_root tag in
   let uri = Cic2acic.uri_of_kernel_name tag in
-  print_object_kind uri kind;
+  if in_theory then print_object_kind uri kind;
   print_object uri obj env Evd.empty fn
 ;;
 
 let print_ref qid fn =
   let ref = Nametab.global qid in
-  print (Global.env ()) ref (kind_of_global (Global.env ()) ref) fn
+  print ~in_theory:true (Global.env ()) ref (kind_of_global (Global.env ())
+   ref) fn
 
 (* show dest                                                  *)
 (*  where dest is either None (for stdout) or (Some filename) *)
@@ -486,12 +458,13 @@ let rec print_body xml_library_root env mp (l,body) =
        print_modtype xml_library_root env mtb.mod_mp mtb.mod_type_alg mtb.mod_type mtb.mod_delta
     | SFBconst _ ->
        let kn = Constant.make2 mp l in
-       print env (Globnames.ConstRef kn) (kind_of_constant kn) xml_library_root
+       print ~in_theory:false env (Globnames.ConstRef kn)
+        (kind_of_constant kn) xml_library_root
     | SFBmind mib ->
        let kn = MutInd.make2 mp l in
        let is_record = mib.mind_record <> NotRecord in
-       print env (Globnames.IndRef (kn,0)) (kind_of_inductive env is_record kn)
-        xml_library_root
+       print ~in_theory:false env (Globnames.IndRef (kn,0))
+        (kind_of_inductive env is_record kn) xml_library_root
 
 and print_structure xml_library_root to_be_declared env mp struc delta =
   let env =
@@ -568,10 +541,9 @@ let _ =
 try (Printexc.record_backtrace true ;
 begin
      let s = "cic:" ^ uri_of_modpath mp in
-      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModuleType\">") ;
+      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModuleType\"/>") ;
      let mtb = Global.lookup_modtype mp in
      print_modtype xml_library_root (Global.env ()) mtb.mod_mp mtb.mod_type_alg mtb.mod_type mtb.mod_delta ;
-     theory_output_string ("</ht:MODULE>") ;
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
@@ -638,7 +610,8 @@ let _ =
   Hook.set Declare.xml_declare_variable
    (function (sp,kn) -> if not !ignore then begin
      let id = Libnames.basename sp in
-     print (Global.env ()) (Globnames.VarRef id) (kind_of_variable id) xml_library_root ;
+     print ~in_theory:true (Global.env ()) (Globnames.VarRef id)
+      (kind_of_variable id) xml_library_root ;
      proof_to_export := None
      end)
 ;;
@@ -650,7 +623,8 @@ try (Printexc.record_backtrace true ;
 begin
      match !proof_to_export with
         None ->
-          print (Global.env ()) (Globnames.ConstRef kn) (kind_of_constant kn)
+          print ~in_theory:true (Global.env ()) (Globnames.ConstRef kn)
+           (kind_of_constant kn)
 	    xml_library_root
       | Some pftreestate ->
          (* It is a proof. Let's export it starting from the proof-tree *)
@@ -665,7 +639,8 @@ with exn -> Printexc.print_backtrace stderr; raise exn)
 let _ =
   Hook.set Declare.xml_declare_inductive
    (function (isrecord,(sp,kn)) -> if not !ignore then begin
-      print (Global.env ()) (Globnames.IndRef (Names.MutInd.make1 kn,0))
+      print ~in_theory:true (Global.env ())
+       (Globnames.IndRef (Names.MutInd.make1 kn,0))
         (kind_of_inductive (Global.env ()) isrecord (Names.MutInd.make1 kn))
         xml_library_root end)
 ;;
