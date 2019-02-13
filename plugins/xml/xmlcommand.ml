@@ -834,7 +834,8 @@ let _ =
 
 let _ =
   Hook.set Library.xml_require
-    (fun d -> theory_output_string
-      (Printf.sprintf "<b>Require</b> <a helm:helm_link=\"href\" href=\"theory:%s.theory\">%s</a>.<br/>"
-       (uri_of_dirpath d) (DirPath.to_string d)))
+    (fun d ->
+      theory_output_string
+       (Printf.sprintf "<ht:REQUIRE uri=\"cic:%s\"/>"
+        (uri_of_dirpath d)))
 ;;
