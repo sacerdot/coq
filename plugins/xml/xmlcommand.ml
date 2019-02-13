@@ -81,12 +81,6 @@ let uri_of_dirpath dir =
 let uri_of_modpath mp =
  "/" ^ String.concat "/" (Cic2acic.uripath_of_modpath mp)
 
-let filename_of_modpath xml_library_root mp =
-  match xml_library_root with
-     None -> assert false
-   | Some xml_library_root' -> xml_library_root' ^ uri_of_modpath mp
-;;
-
 let body_filename_of_filename =
  function
     Some f -> Some (f ^ ".body")
@@ -101,33 +95,32 @@ let types_filename_of_filename =
 
 let library_dp = ref (Lib.library_dp ());; (* dummy value, always overwritten *)
 
-let theory_filename xml_library_root =
+let filename_of_stringlist xml_library_root toks ext =
   match xml_library_root with
     None -> None  (* stdout *)
-  | Some xml_library_root ->
-     let toks = List.map Id.to_string (DirPath.repr !library_dp) in
-     (* theory from A/B/C/F.v goes into A/B/C/F.theory *)
-     let alltoks = List.rev toks in
-       Some (join_dirs xml_library_root alltoks ^ ".theory")
+  | Some xml_library_root -> Some (join_dirs xml_library_root toks ^ ext)
+
+let filename_of_dirpath xml_library_root dp ext =
+ (* theory from A/B/C/F.v goes into A/B/C/F.theory *)
+ let toks = List.rev_map Id.to_string (DirPath.repr dp) in
+ filename_of_stringlist xml_library_root toks ext
+
+let theory_filename xml_library_root =
+ filename_of_dirpath xml_library_root !library_dp ".theory"
+
+let filename_of_modpath xml_library_root mp ext =
+ filename_of_stringlist xml_library_root (Cic2acic.uripath_of_modpath mp) ext
 
 let expr_filename of_ xml_library_root mp =
-  match xml_library_root with
-    None -> None  (* stdout *)
-  | Some xml_library_root ->
-     let suffix =
-      match of_ with
-         `Impl -> ".impl.expr"
-       | `MTImpl -> ".expr"
-       | `Type -> ".expr" in
-     Some (join_dirs xml_library_root (Cic2acic.uripath_of_modpath mp) ^ suffix ^ ".xml")
+ let ext =
+  match of_ with
+     `Impl -> ".impl.expr"
+   | `MTImpl -> ".expr"
+   | `Type -> ".expr" in
+ filename_of_modpath xml_library_root mp (ext ^ ".xml")
 
-(* TODO: factorize with previous function *)
 let sub_expr_filename xml_library_root mp =
-  match xml_library_root with
-    None -> None  (* stdout *)
-  | Some xml_library_root ->
-     let suffix = ".sub" in
-     Some (join_dirs xml_library_root (Cic2acic.uripath_of_modpath mp) ^ suffix ^ ".xml")
+ filename_of_modpath xml_library_root mp ".sub.xml"
 
 let print_object uri obj env sigma filename =
  (* function to pretty print and compress an XML file *)
@@ -429,8 +422,9 @@ let show fn =
 
 let move_to_impl xml_library_root mp =
  if xml_library_root <> None then
-  let dir = filename_of_modpath xml_library_root mp in
-   Unix.rename dir (dir^".impl")
+  match filename_of_modpath xml_library_root mp "" with
+     None -> ()
+   | Some dir -> Unix.rename dir (dir^".impl")
 
 let rec flatten_app mexpr l = match mexpr with
   | MEapply (mexpr, arg) -> flatten_app mexpr (arg::l)
@@ -479,11 +473,6 @@ let rec print_functor xml_library_root ~to_be_declared fty ftyend fatom env mp d
     ftyend () ;
     Cic2acic.unregister_mbids ()
 
-let filename_of_dirpath xml_library_root dp =
- match xml_library_root with
-    None -> assert false
-  | Some xml_library_root -> xml_library_root ^ uri_of_dirpath dp
-
 let get_role role ~abstract =
  match role,abstract with
     `Module,false -> "Module"
@@ -496,15 +485,15 @@ let get_role role ~abstract =
 
 let print_role xml_library_root mp role ~abstract =
  let role = get_role role ~abstract in
- let fn = filename_of_modpath xml_library_root mp ^ ".role" in
- let ch = open_out fn in
+ let fn = filename_of_modpath xml_library_root mp ".role" in
+ let ch = match fn with None -> stdout | Some fn -> open_out fn in
  output_string ch (role ^ "\n") ;
  close_out ch
 
 let print_section_role xml_library_root dp =
  let role = get_role `Section ~abstract:false in
- let fn = filename_of_dirpath xml_library_root dp ^ ".role" in
- let ch = open_out fn in
+ let fn = filename_of_dirpath xml_library_root dp ".role" in
+ let ch = match fn with None -> stdout | Some fn -> open_out fn in
  output_string ch (role ^ "\n") ;
  close_out ch
 
