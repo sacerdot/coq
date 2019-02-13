@@ -536,14 +536,37 @@ let proof_to_export = ref None (* holds the proof-tree to export *)
 let ignore = ref false;;
 let _ = Hook.set Stm.tactic_being_run_hook (function b -> ignore := b);;
 
+let get_params mp mt =
+ let rec aux =
+  function
+     NoFunctor _ -> ""
+   | MoreFunctor (mbid,_,tl) ->
+      let ids = Cic2acic.idlist_of_modpath mp in
+      Cic2acic.register_mbids [mbid] (Names.DirPath.make (List.rev ids)) ;
+      let mp1 = MPbound mbid in
+      let res =
+       "cic:" ^ uri_of_modpath mp1 ^
+        match tl with
+           NoFunctor _ -> ""
+         | MoreFunctor _ -> " " ^ aux tl in
+     Cic2acic.unregister_mbids () ;
+     res
+ in
+  " params=\"" ^ aux mt ^ "\""
+
+let get_params2 l =
+ " params=\"" ^
+ String.concat " "
+  (List.rev_map (fun id -> "cic:" ^ uri_of_modpath (MPbound id)) l) ^ "\""
+
 let _ =
   Hook.set Declaremods.xml_declare_module
    (function mp -> if not !ignore then
 try (Printexc.record_backtrace true ;
 begin
-     let s = "cic:" ^ uri_of_modpath mp in
-      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModule\"" ^ get_loc () ^ "/>") ;
      let me = Global.lookup_module mp in
+     let s = "cic:" ^ uri_of_modpath mp in
+      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModule\"" ^ get_loc () ^ get_params mp me.mod_type ^ "/>") ;
      print_module ~struct_already_printed:false xml_library_root (Global.env ()) mp me
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
@@ -554,9 +577,9 @@ let _ =
    (function mp -> if not !ignore then
 try (Printexc.record_backtrace true ;
 begin
-     let s = "cic:" ^ uri_of_modpath mp in
-      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModuleType\"" ^ get_loc () ^ "/>") ;
      let mtb = Global.lookup_modtype mp in
+     let s = "cic:" ^ uri_of_modpath mp in
+      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModuleType\"" ^ get_loc () ^ get_params mp mtb.mod_type ^ "/>") ;
      print_modtype xml_library_root (Global.env ()) mtb.mod_mp mtb.mod_type_alg mtb.mod_type mtb.mod_delta ;
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
@@ -567,9 +590,9 @@ let _ =
    (function (mp,args) -> if not !ignore then
 try (Printexc.record_backtrace true ;
 begin
-     let s = "cic:" ^ uri_of_modpath mp in
-      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"Module\"" ^ get_loc () ^ ">") ;
      Cic2acic.register_mbids args (Lib.cwd ()) ;
+     let s = "cic:" ^ uri_of_modpath mp in
+      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"Module\"" ^ get_loc () ^ get_params2 args ^ ">") ;
      List.iter (fun id ->
        let mp = Names.ModPath.MPbound id in
        let mb = Global.lookup_module mp in
@@ -597,9 +620,9 @@ let _ =
    (function (mp,args) -> if not !ignore then
 try (Printexc.record_backtrace true ;
 begin
-     let s = "cic:" ^ uri_of_modpath mp in
-      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"ModuleType\"" ^ get_loc () ^ ">") ;
      Cic2acic.register_mbids args (Lib.cwd ()) ;
+     let s = "cic:" ^ uri_of_modpath mp in
+      theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"ModuleType\"" ^ get_loc () ^ get_params2 args ^ ">") ;
      List.iter (fun id ->
        let mp = Names.ModPath.MPbound id in
        let mb = Global.lookup_module mp in

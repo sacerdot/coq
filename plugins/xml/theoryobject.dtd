@@ -38,7 +38,8 @@
 
 <!ELEMENT ht:MODULE (%theorystructure;)>
 <!ATTLIST ht:MODULE
-          uri CDATA #REQUIRED
+          uri    CDATA #REQUIRED
+          params CDATA #REQUIRED
           as (Module|ModuleType|AlgebraicModule|AlgebraicModuleType)>
 
 <!ELEMENT ht:MUTUAL (ht:DEFINITION,ht:DEFINITION+)>
