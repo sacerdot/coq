@@ -245,7 +245,7 @@ let intro_pattern_of_ident id = make @@ IntroNaming (IntroIdentifier id)
 let print_xml_term = ref (fun _ -> failwith "print_xml_term unset")
 let declare_xml_printer f = print_xml_term := f
 
-let internalise_tacarg ch = assert false (*??? G_xml.parse_tactic_arg ch*)
+let internalise_tacarg _ch = assert false (*??? G_xml.parse_tactic_arg ch*)
 
 let error msg =
  prerr_endline msg ;

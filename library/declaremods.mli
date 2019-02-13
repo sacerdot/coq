@@ -84,11 +84,11 @@ val start_modtype :
 val end_modtype : unit -> ModPath.t
 
 (** Hooks for XML output *)
-val xml_declare_module : (ModPath.t -> unit) Hook.t
-val xml_start_module : (ModPath.t * Names.MBId.t list -> unit) Hook.t
+val xml_declare_module : (ModPath.t * unit Declarations.generic_module_body list -> unit) Hook.t
+val xml_start_module : (ModPath.t * Names.MBId.t list * unit Declarations.generic_module_body list -> unit) Hook.t
 val xml_end_module : (ModPath.t -> unit) Hook.t
-val xml_declare_module_type : (ModPath.t -> unit) Hook.t
-val xml_start_module_type : (ModPath.t * Names.MBId.t list -> unit) Hook.t
+val xml_declare_module_type : (ModPath.t * unit Declarations.generic_module_body list -> unit) Hook.t
+val xml_start_module_type : (ModPath.t * Names.MBId.t list * unit Declarations.generic_module_body list -> unit) Hook.t
 val xml_end_module_type : (ModPath.t -> unit) Hook.t
 
 (** {6 Libraries i.e. modules on disk } *)

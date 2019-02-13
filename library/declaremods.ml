@@ -618,7 +618,7 @@ let start_module interp_modast export id args res fs =
   openmod_info := { cur_typ = res_entry_o; cur_typs = subtyps };
   let prefix = Lib.start_module export id mp fs in
   Nametab.push_dir (Nametab.Until 1) (prefix.obj_dir) (DirOpenModule prefix);
-  if_xml (Hook.get f_xml_start_module) (mp,List.map (fun (x,_,_) -> x) arg_entries_r) ;
+  if_xml (Hook.get f_xml_start_module) (mp,List.map (fun (x,_,_) -> x) arg_entries_r,subtyps) ;
   mp
 
 let end_module () =
@@ -720,7 +720,7 @@ let declare_module interp_modast id args res mexpr_o fs =
 
   let sobjs = subst_sobjs (map_mp mp0 mp resolver) sobjs in
   ignore (Lib.add_leaf id (in_module sobjs));
-  if_xml (Hook.get f_xml_declare_module) mp;
+  if_xml (Hook.get f_xml_declare_module) (mp,subs);
   mp
 
 end
@@ -739,7 +739,7 @@ let start_modtype interp_modast id args mtys fs =
   openmodtype_info := sub_mty_l;
   let prefix = Lib.start_modtype id mp fs in
   Nametab.push_dir (Nametab.Until 1) (prefix.obj_dir) (DirOpenModtype prefix);
-  if_xml (Hook.get f_xml_start_module_type) (mp,List.map (fun (x,_,_) -> x) arg_entries_r) ;
+  if_xml (Hook.get f_xml_start_module_type) (mp,List.map (fun (x,_,_) -> x) arg_entries_r,sub_mty_l) ;
   mp
 
 let end_modtype () =
@@ -797,7 +797,7 @@ let declare_modtype interp_modast id args mtys (mty,ann) fs =
   check_subtypes_mt mp sub_mty_l;
 
   ignore (Lib.add_leaf id (in_modtype sobjs));
-  if_xml (Hook.get f_xml_declare_module_type) mp;
+  if_xml (Hook.get f_xml_declare_module_type) (mp,sub_mty_l);
   mp
 
 end

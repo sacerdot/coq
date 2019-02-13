@@ -121,6 +121,14 @@ let expr_filename of_ xml_library_root mp =
        | `Type -> ".expr" in
      Some (join_dirs xml_library_root (Cic2acic.uripath_of_modpath mp) ^ suffix ^ ".xml")
 
+(* TODO: factorize with previous function *)
+let sub_expr_filename xml_library_root mp =
+  match xml_library_root with
+    None -> None  (* stdout *)
+  | Some xml_library_root ->
+     let suffix = ".sub" in
+     Some (join_dirs xml_library_root (Cic2acic.uripath_of_modpath mp) ^ suffix ^ ".xml")
+
 let print_object uri obj env sigma filename =
  (* function to pretty print and compress an XML file *)
 (*CSC: Unix.system "gzip ..." is an horrible non-portable solution. *)
@@ -272,17 +280,24 @@ let expr_buffer = Buffer.create 400
 
 let expr_output_string = Buffer.add_string expr_buffer
 
+let save_expr_buffer_to ofn xml_library_root mp =
+ begin
+  match ofn with
+     None ->
+       Buffer.output_buffer stdout expr_buffer
+   | Some fn ->
+       let ch = open_out fn in
+       Buffer.output_buffer ch expr_buffer ;
+       close_out ch;
+ end
+
 let save_expr_buffer of_ xml_library_root mp =
- let ofn = expr_filename of_ xml_library_root mp in
-  begin
-   match ofn with
-      None ->
-        Buffer.output_buffer stdout expr_buffer
-    | Some fn ->
-        let ch = open_out fn in
-        Buffer.output_buffer ch expr_buffer ;
-        close_out ch;
-  end
+ save_expr_buffer_to (expr_filename of_ xml_library_root mp)
+  xml_library_root mp
+
+let save_sub_expr_buffer xml_library_root mp =
+ save_expr_buffer_to (sub_expr_filename xml_library_root mp)
+  xml_library_root mp
 
 let kind_of_inductive env isrecord kn () =
  "DEFINITION",
@@ -531,10 +546,26 @@ and print_expression_abstr ~role _xml_library_root _env mp _mtb_mod_type_alg _mt
 and print_expression_abstr_end () =
  expr_output_string "</ABS>"
 
+and print_functor_expr xml_library_root env mp expr =
+ print_functor () ~to_be_declared:false print_expression_abstr print_expression_abstr_end print_expression_body env mp () expr
+
 and print_expression of_ xml_library_root env mp expr =
  Buffer.reset expr_buffer ;
- print_functor () ~to_be_declared:false print_expression_abstr print_expression_abstr_end print_expression_body env mp () expr ;
+ print_functor_expr xml_library_root env mp expr ;
  save_expr_buffer of_ xml_library_root mp
+
+and print_subexpressions xml_library_root env mp exprs =
+ if exprs <> [] then begin
+  Buffer.reset expr_buffer ;
+  List.iter (fun sub ->
+    match sub.mod_type_alg with
+       None -> assert false
+     | Some expr ->
+        print_functor_expr xml_library_root env mp expr ;
+        expr_output_string "\n"
+  ) exprs ;
+  save_sub_expr_buffer xml_library_root mp
+ end
 
 and print_module ~role ~struct_already_printed xml_library_root env mp mb =
   (match mb.mod_expr with
@@ -594,43 +625,51 @@ let get_params2 l =
 
 let _ =
   Hook.set Declaremods.xml_declare_module
-   (function mp -> if not !ignore then
+   (function (mp,subs) -> if not !ignore then
 try (Printexc.record_backtrace true ;
 begin
      let me = Global.lookup_module mp in
+     let env = Global.env () in
      let s = "cic:" ^ uri_of_modpath mp in
       theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModule\"" ^ get_loc () ^ get_params mp me.mod_type ^ "/>") ;
-     print_module ~role:`Module ~struct_already_printed:false xml_library_root (Global.env ()) mp me
+     print_module ~role:`Module ~struct_already_printed:false
+      xml_library_root env mp me ;
+     print_subexpressions xml_library_root env mp subs
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
 
 let _ =
   Hook.set Declaremods.xml_declare_module_type
-   (function mp -> if not !ignore then
+   (function (mp,subs) -> if not !ignore then
 try (Printexc.record_backtrace true ;
 begin
+     let env = Global.env () in
      let mtb = Global.lookup_modtype mp in
      let s = "cic:" ^ uri_of_modpath mp in
       theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModuleType\"" ^ get_loc () ^ get_params mp mtb.mod_type ^ "/>") ;
-     print_modtype xml_library_root (Global.env ()) mtb.mod_mp mtb.mod_type_alg mtb.mod_type mtb.mod_delta ~role:`ModuleType ;
+     print_modtype xml_library_root env mtb.mod_mp mtb.mod_type_alg
+      mtb.mod_type mtb.mod_delta ~role:`ModuleType ;
+     print_subexpressions xml_library_root env mp subs
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
 
 let _ =
   Hook.set Declaremods.xml_start_module
-   (function (mp,args) -> if not !ignore then
+   (function (mp,args,subs) -> if not !ignore then
 try (Printexc.record_backtrace true ;
 begin
      Cic2acic.register_mbids args (Lib.cwd ()) ;
+     let env = Global.env () in
      let s = "cic:" ^ uri_of_modpath mp in
       theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"Module\"" ^ get_loc () ^ get_params2 args ^ ">") ;
      List.iter (fun id ->
        let mp = Names.ModPath.MPbound id in
        let mb = Global.lookup_module mp in
-       print_module ~role:`Param ~struct_already_printed:false xml_library_root (Global.env ()) mp mb
-     ) args
+       print_module ~role:`Param ~struct_already_printed:false xml_library_root env mp mb ;
+     ) args ;
+     print_subexpressions xml_library_root env mp subs
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
@@ -651,17 +690,20 @@ with exn -> Printexc.print_backtrace stderr; raise exn)
 
 let _ =
   Hook.set Declaremods.xml_start_module_type
-   (function (mp,args) -> if not !ignore then
+   (function (mp,args,subs) -> if not !ignore then
 try (Printexc.record_backtrace true ;
 begin
      Cic2acic.register_mbids args (Lib.cwd ()) ;
+     let env = Global.env () in
      let s = "cic:" ^ uri_of_modpath mp in
       theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"ModuleType\"" ^ get_loc () ^ get_params2 args ^ ">") ;
      List.iter (fun id ->
        let mp = Names.ModPath.MPbound id in
        let mb = Global.lookup_module mp in
-       print_module ~role:`Param ~struct_already_printed:false xml_library_root (Global.env ()) mp mb
-     ) args
+       print_module ~role:`Param ~struct_already_printed:false
+        xml_library_root env mp mb
+     ) args ;
+     print_subexpressions xml_library_root env mp subs
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
