@@ -2,7 +2,6 @@
   CErrors.*
 
 TODO/BAD:
-- esportare gli Include (come da DTD)
 - documentare che ora settare COQ_XML_LIBRARY_ROOT implica -xml
   forse si può proprio togliere il flag -xml?
 - library/global.ml
