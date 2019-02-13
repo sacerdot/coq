@@ -425,28 +425,32 @@ let rec flatten_app mexpr l = match mexpr with
 let print_expression_body _xml_library_root _to_be_declared env mp mty _delta =
  let rec to_xml =
   function
-   | MEident kn -> "<MODULE uri=\"cic:" ^ uri_of_modpath kn ^ "\"/>"
+   | MEident kn ->
+      expr_output_string ("<MODULE uri=\"cic:" ^ uri_of_modpath kn ^ "\"/>")
    | MEapply _ ->
        let lapp = flatten_app mty [] in
-        "<APP>" ^
-         String.concat ""
-          (List.map (fun kn -> to_xml (MEident kn)) lapp) ^
-        "</APP>"
+        expr_output_string "<APP>" ;
+        List.iter (fun kn -> to_xml (MEident kn)) lapp ;
+        expr_output_string "</APP>"
    | MEwith(me,what) ->
-       "<WITH>" ^ to_xml me ^
-        (match what with
-            WithDef(idl,(c,_)) ->
-             let relUri = relUri_of_id_list idl in
-              "<DEFINITION relURI=\"" ^ relUri ^ "\">" ^
-               "???n"^
-              "</DEFINITION>"
-          | WithMod(idl,mp') ->
-             let relUri = relUri_of_id_list idl in
-             let to_ = "cic:" ^ uri_of_modpath mp' in
-              "<MODULE relURI=\"" ^ relUri ^ "\" to=\"" ^ to_ ^ "\"/>"
-        ) ^ "</WITH>"
+       expr_output_string "<WITH>" ;
+       to_xml me ;
+       (match what with
+           WithDef(idl,(c,_)) ->
+            let relUri = relUri_of_id_list idl in
+             expr_output_string ("<DEFINITION relURI=\"" ^ relUri ^ "\">") ;
+             Cic2Xml.print_xml_term expr_output_string env Evd.empty
+              (EConstr.of_constr c) ;
+             expr_output_string "</DEFINITION>"
+         | WithMod(idl,mp') ->
+            let relUri = relUri_of_id_list idl in
+            let to_ = "cic:" ^ uri_of_modpath mp' in
+             expr_output_string
+              ("<MODULE relURI=\"" ^ relUri ^ "\" to=\"" ^ to_ ^ "\"/>")
+       ) ;
+       expr_output_string "</WITH>"
  in
-  expr_output_string (to_xml mty)
+  to_xml mty
 
 let rec print_functor xml_library_root ~to_be_declared fty ftyend fatom env mp delta = function
   |NoFunctor me -> fatom xml_library_root to_be_declared env mp me delta

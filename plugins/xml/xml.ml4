@@ -28,10 +28,7 @@ let xml_empty name attrs = [< 'Empty(name,attrs) >]
 let xml_nempty name attrs content = [< 'NEmpty(name,attrs,content) >]
 let xml_cdata str = [< 'Str str >]
 
-(* Usage:                                                                   *)
-(*  pp tokens None     pretty prints the output on stdout                   *)
-(*  pp tokens (Some filename) pretty prints the output on the file filename *)
-let pp_ch strm channel =
+let pp_f strm fprint_string =
  let rec pp_r m =
   parser
     [< 'Str a ; s >] ->
@@ -56,13 +53,16 @@ let pp_ch strm channel =
   | [< >] -> ()
  and print_spaces m =
   for _i = 1 to m do fprint_string "  " done
- and fprint_string str =
-  output_string channel str
  in
   pp_r 0 strm
 ;;
 
+let pp_ch strm channel =
+ pp_f strm (output_string channel)
 
+(* Usage:                                                                   *)
+(*  pp tokens None     pretty prints the output on stdout                   *)
+(*  pp tokens (Some filename) pretty prints the output on the file filename *)
 let pp strm fn =
   match fn with
      Some filename ->
