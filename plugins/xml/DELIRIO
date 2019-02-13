@@ -1,0 +1,36 @@
+* let error = ..
+  CErrors.*
+
+TODO/BAD:
+- implementare <:
+- implementare argomenti di "Definition with"
+- esportare gli Include (come da DTD)
+- esportare il fatto che certe directory sono argomenti delle teorie
+- documentare che ora settare COQ_XML_LIBRARY_ROOT implica -xml
+  forse si può proprio togliere il flag -xml?
+- library/global.ml
+(** Changing the (im)predicativity of the system *)
+val set_engagement : Declarations.engagement -> unit
+
+- doubleTypeInference non fa nulla
+
+- sezioni: le definizioni sono _fuori_ dalla sezione :-(
+- Universi
+- Primitive record projection e FakeRecord/PrimRecord/*
+  coq-mtac2 fallisce per primitive projection
+
+- documentare cambio DTD
+- uniformare codice di stampa/creazione uri!
+
+- esportare versione da cucinare e cucinata per risolvere il problema delle
+  sezioni nei module type
+
+ORRORE:
+- bud in cic2acic.ml: uso di Lib.cwd per le sezioni. Che succede se le annido?
+- le sezioni nei moduli che hanno un module type quando esportate
+  vengono esportate in maniera incoerente: nell'interfaccia c'è solo
+  la versione cucinata!
+- dualmente una sezione in un module type poi non viene rispecchiata nel
+  modulo. Aaaahh
+
+https://gitter.im/coq/coq
