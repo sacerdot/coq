@@ -3,9 +3,7 @@
 
 TODO/BAD:
 - implementare <:
-- implementare argomenti di "Definition with"
 - esportare gli Include (come da DTD)
-- esportare il fatto che certe directory sono argomenti delle teorie
 - documentare che ora settare COQ_XML_LIBRARY_ROOT implica -xml
   forse si può proprio togliere il flag -xml?
 - library/global.ml

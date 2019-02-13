@@ -566,9 +566,9 @@ let close_section () =
       user_err Pp.(str  "No opened section.")
   in
   let (secdecls,mark,before) = split_lib_at_opening oname in
+  if !Flags.xml_export then Hook.get f_xml_close_section (basename (fst oname));
   lib_state := { !lib_state with lib_stk = before };
   pop_path_prefix ();
-  if !Flags.xml_export then Hook.get f_xml_close_section (basename (fst oname));
   let newdecls = List.map discharge_item secdecls in
   Summary.unfreeze_summaries fs;
   List.iter (Option.iter (fun (id,o) -> add_discharged_leaf id o)) newdecls

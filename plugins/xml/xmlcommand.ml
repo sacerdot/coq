@@ -459,17 +459,46 @@ let rec print_functor xml_library_root ~to_be_declared fty ftyend fatom env mp d
     Cic2acic.register_mbids [mbid] (Names.DirPath.make (List.rev ids)) ;
     let mp1 = MPbound mbid in
     let env = Modops.add_module_type mp1 mtb1 env in
-    fty xml_library_root env mp1 mtb1.mod_type_alg mtb1.mod_type mtb1.mod_delta ;
+    fty ~role:`Param xml_library_root env mp1 mtb1.mod_type_alg mtb1.mod_type mtb1.mod_delta ;
     print_functor xml_library_root ~to_be_declared:true fty ftyend fatom env mp delta me2 ;
     ftyend () ;
     Cic2acic.unregister_mbids ()
 
+let filename_of_dirpath xml_library_root dp =
+ match xml_library_root with
+    None -> assert false
+  | Some xml_library_root -> xml_library_root ^ uri_of_dirpath dp
+
+let get_role role ~abstract =
+ match role,abstract with
+    `Module,false -> "Module"
+  | `Module,true -> "DeclaredModule"
+  | `ModuleType,false -> "ModuleType"
+  | `Param,true -> "Parameter"
+  | `Section,false -> "Section"
+  | (`ModuleType|`Section),true
+  | `Param,false -> assert false
+
+let print_role xml_library_root mp role ~abstract =
+ let role = get_role role ~abstract in
+ let fn = filename_of_modpath xml_library_root mp ^ ".role" in
+ let ch = open_out fn in
+ output_string ch (role ^ "\n") ;
+ close_out ch
+
+let print_section_role xml_library_root dp =
+ let role = get_role `Section ~abstract:false in
+ let fn = filename_of_dirpath xml_library_root dp ^ ".role" in
+ let ch = open_out fn in
+ output_string ch (role ^ "\n") ;
+ close_out ch
+
 let rec print_body xml_library_root env mp (l,body) =
   match body with
-    | SFBmodule mb -> print_module ~struct_already_printed:false xml_library_root env mb.mod_mp mb
+    | SFBmodule mb -> print_module ~role:`Module ~struct_already_printed:false xml_library_root env mb.mod_mp mb
     | SFBmodtype mtb ->
        let env = Modops.add_module (Modops.module_body_of_type mtb.mod_mp mtb) env in
-       print_modtype xml_library_root env mtb.mod_mp mtb.mod_type_alg mtb.mod_type mtb.mod_delta
+       print_modtype ~role:`ModuleType xml_library_root env mtb.mod_mp mtb.mod_type_alg mtb.mod_type mtb.mod_delta
     | SFBconst _ ->
        let kn = Constant.make2 mp l in
        print ~in_theory:false env (Globnames.ConstRef kn)
@@ -485,16 +514,17 @@ and print_structure xml_library_root to_be_declared env mp struc delta =
    if to_be_declared then Modops.add_structure mp struc delta env else env in
   List.iter (print_body xml_library_root env mp) struc
 
-and print_modtype xml_library_root env mp mtb_mod_type_alg mtb_mod_type mtb_mod_delta =
+and print_modtype ~role xml_library_root env mp mtb_mod_type_alg mtb_mod_type mtb_mod_delta =
  (match mtb_mod_type_alg with
      None -> ()
    | Some alg -> print_expression `MTImpl xml_library_root env mp alg);
- print_signature xml_library_root ~to_be_declared:true env mp mtb_mod_type mtb_mod_delta
+ print_signature xml_library_root ~to_be_declared:true env mp mtb_mod_type mtb_mod_delta ;
+ print_role xml_library_root mp `ModuleType ~abstract:false
 
 and print_signature xml_library_root ~to_be_declared env mp me delta =
  print_functor xml_library_root ~to_be_declared print_modtype (fun () -> ()) print_structure env mp delta me
 
-and print_expression_abstr _xml_library_root _env mp _mtb_mod_type_alg _mtb_mod_type _mtb_mod_delta =
+and print_expression_abstr ~role _xml_library_root _env mp _mtb_mod_type_alg _mtb_mod_type _mtb_mod_delta =
  let uri = "cic:" ^ uri_of_modpath mp in
  expr_output_string ("<ABS uri=\"" ^ uri ^ "\">")
 
@@ -506,7 +536,7 @@ and print_expression of_ xml_library_root env mp expr =
  print_functor () ~to_be_declared:false print_expression_abstr print_expression_abstr_end print_expression_body env mp () expr ;
  save_expr_buffer of_ xml_library_root mp
 
-and print_module ~struct_already_printed xml_library_root env mp mb =
+and print_module ~role ~struct_already_printed xml_library_root env mp mb =
   (match mb.mod_expr with
     | Algebraic me -> print_expression `Impl xml_library_root env mp me
     | Struct sign ->
@@ -519,7 +549,10 @@ and print_module ~struct_already_printed xml_library_root env mp mb =
       None -> ()
     | Some alg -> print_expression `Type xml_library_root env mp alg);
   if not (struct_already_printed && mb.mod_expr = FullStruct) then
-   print_signature xml_library_root ~to_be_declared:false env mp mb.mod_type mb.mod_delta
+   print_signature xml_library_root ~to_be_declared:false env mp mb.mod_type mb.mod_delta ;
+  if not struct_already_printed then
+   print_role xml_library_root mp role ~abstract:(mb.mod_expr = Abstract)
+;;
 
 (***** End of Module Printing ****)
 
@@ -567,7 +600,7 @@ begin
      let me = Global.lookup_module mp in
      let s = "cic:" ^ uri_of_modpath mp in
       theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModule\"" ^ get_loc () ^ get_params mp me.mod_type ^ "/>") ;
-     print_module ~struct_already_printed:false xml_library_root (Global.env ()) mp me
+     print_module ~role:`Module ~struct_already_printed:false xml_library_root (Global.env ()) mp me
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
@@ -580,7 +613,7 @@ begin
      let mtb = Global.lookup_modtype mp in
      let s = "cic:" ^ uri_of_modpath mp in
       theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModuleType\"" ^ get_loc () ^ get_params mp mtb.mod_type ^ "/>") ;
-     print_modtype xml_library_root (Global.env ()) mtb.mod_mp mtb.mod_type_alg mtb.mod_type mtb.mod_delta ;
+     print_modtype xml_library_root (Global.env ()) mtb.mod_mp mtb.mod_type_alg mtb.mod_type mtb.mod_delta ~role:`ModuleType ;
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
@@ -596,7 +629,7 @@ begin
      List.iter (fun id ->
        let mp = Names.ModPath.MPbound id in
        let mb = Global.lookup_module mp in
-       print_module ~struct_already_printed:false xml_library_root (Global.env ()) mp mb
+       print_module ~role:`Param ~struct_already_printed:false xml_library_root (Global.env ()) mp mb
      ) args
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
@@ -607,9 +640,10 @@ let _ =
    (function mp -> if not !ignore then
 try (Printexc.record_backtrace true ;
 begin
+     print_role xml_library_root mp `Module ~abstract:false ;
      theory_output_string ("</ht:MODULE>") ;
      let mb = Environ.lookup_module mp (Global.env ()) in
-     print_module ~struct_already_printed:true xml_library_root (Global.env ()) mp mb ;
+     print_module ~role:`Module ~struct_already_printed:true xml_library_root (Global.env ()) mp mb ;
      Cic2acic.unregister_mbids ()
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
@@ -626,7 +660,7 @@ begin
      List.iter (fun id ->
        let mp = Names.ModPath.MPbound id in
        let mb = Global.lookup_module mp in
-       print_module ~struct_already_printed:false xml_library_root (Global.env ()) mp mb
+       print_module ~role:`Param ~struct_already_printed:false xml_library_root (Global.env ()) mp mb
      ) args
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
@@ -637,6 +671,7 @@ let _ =
    (function mp -> if not !ignore then
 try (Printexc.record_backtrace true ;
 begin
+     print_role xml_library_root mp `ModuleType ~abstract:false ;
      theory_output_string ("</ht:MODULE>")
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
@@ -750,7 +785,9 @@ let _ =
 
 let _ =
   Hook.set Lib.xml_close_section
-    (fun _ -> theory_output_string "</ht:SECTION>")
+    (fun _ ->
+      print_section_role xml_library_root (Lib.cwd ()) ;
+      theory_output_string "</ht:SECTION>")
 ;;
 
 let _ =
