@@ -584,6 +584,7 @@ let openmodtype_info =
 (** XML output hooks *)
 
 let (f_xml_declare_module, xml_declare_module) = Hook.make ~default:ignore ()
+let (f_xml_declare_subtypes, xml_declare_subtypes) = Hook.make ~default:ignore ()
 let (f_xml_start_module, xml_start_module) = Hook.make ~default:ignore ()
 let (f_xml_end_module, xml_end_module) = Hook.make ~default:ignore ()
 let (f_xml_declare_module_type, xml_declare_module_type) = Hook.make ~default:ignore ()
@@ -682,6 +683,7 @@ let declare_module interp_modast id args res mexpr_o fs =
       None, typs, default_inline (), cst
   in
   let env = Environ.push_context_set ~strict:true cst' env in
+  if_xml (Hook.get f_xml_declare_subtypes) (mp,List.map (fun (x,_,_) -> x) arg_entries_r,subs);
   let cst = Univ.ContextSet.union cst cst' in
   let mexpr_entry_o, inl_expr, cst' = match mexpr_o with
     | None -> None, default_inline (), Univ.ContextSet.empty
@@ -720,7 +722,7 @@ let declare_module interp_modast id args res mexpr_o fs =
 
   let sobjs = subst_sobjs (map_mp mp0 mp resolver) sobjs in
   ignore (Lib.add_leaf id (in_module sobjs));
-  if_xml (Hook.get f_xml_declare_module) (mp,subs);
+  if_xml (Hook.get f_xml_declare_module) mp;
   mp
 
 end
@@ -778,6 +780,7 @@ let declare_modtype interp_modast id args mtys (mty,ann) fs =
   let entry = params, mte in
   let sub_mty_l, cst = build_subtypes interp_modast env mp arg_entries_r mtys in
   let () = Global.push_context_set true cst in
+  if_xml (Hook.get f_xml_declare_subtypes) (mp,List.map (fun (x,_,_) -> x) arg_entries_r,sub_mty_l);
   let env = Global.env () in
   let sobjs = get_functor_sobjs false env inl entry in
   let subst = map_mp (get_module_path (snd entry)) mp empty_delta_resolver in
@@ -797,7 +800,7 @@ let declare_modtype interp_modast id args mtys (mty,ann) fs =
   check_subtypes_mt mp sub_mty_l;
 
   ignore (Lib.add_leaf id (in_modtype sobjs));
-  if_xml (Hook.get f_xml_declare_module_type) (mp,sub_mty_l);
+  if_xml (Hook.get f_xml_declare_module_type) mp;
   mp
 
 end

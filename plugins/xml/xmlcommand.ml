@@ -614,7 +614,7 @@ let get_params2 l =
 
 let _ =
   Hook.set Declaremods.xml_declare_module
-   (function (mp,subs) -> if not !ignore then
+   (function mp -> if not !ignore then
 try (Printexc.record_backtrace true ;
 begin
      let me = Global.lookup_module mp in
@@ -622,15 +622,32 @@ begin
      let s = "cic:" ^ uri_of_modpath mp in
       theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModule\"" ^ get_loc () ^ get_params mp me.mod_type ^ "/>") ;
      print_module ~role:`Module ~struct_already_printed:false
-      xml_library_root env mp me ;
-     print_subexpressions xml_library_root env mp subs
+      xml_library_root env mp me
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
 
 let _ =
+  Hook.set Declaremods.xml_declare_subtypes
+   (function (mp,args,subs) -> if not !ignore then
+try (Printexc.record_backtrace true ;
+begin
+    (* Ugly workaround for Coq issue #9579: the algebraic expressions in
+       subs are not MoreFunctor-abstracted as they should. Therefore we
+       have to add this hook in the middle. *)
+    let env = Global.env () in
+    let ids = Cic2acic.idlist_of_modpath mp in
+    Cic2acic.register_mbids args (Names.DirPath.make (List.rev ids)) ;
+    print_subexpressions xml_library_root env mp subs ;
+    Cic2acic.unregister_mbids ()
+    end)
+with exn -> Printexc.print_backtrace stderr; raise exn)
+;;
+
+
+let _ =
   Hook.set Declaremods.xml_declare_module_type
-   (function (mp,subs) -> if not !ignore then
+   (function mp -> if not !ignore then
 try (Printexc.record_backtrace true ;
 begin
      let env = Global.env () in
@@ -638,8 +655,7 @@ begin
      let s = "cic:" ^ uri_of_modpath mp in
       theory_output_string ("<ht:MODULE uri=\""^s^"\" as=\"AlgebraicModuleType\"" ^ get_loc () ^ get_params mp mtb.mod_type ^ "/>") ;
      print_modtype xml_library_root env mtb.mod_mp mtb.mod_type_alg
-      mtb.mod_type mtb.mod_delta ~role:`ModuleType ;
-     print_subexpressions xml_library_root env mp subs
+      mtb.mod_type mtb.mod_delta ~role:`ModuleType
     end)
 with exn -> Printexc.print_backtrace stderr; raise exn)
 ;;
