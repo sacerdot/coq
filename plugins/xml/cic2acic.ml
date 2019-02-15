@@ -169,7 +169,10 @@ module CPropRetyping =
 let typeur sigma metamap =
   let rec type_of env cstr=
     match EConstr.kind sigma cstr with
-    | T.Proj _ -> assert false
+    | T.Proj (p,c) ->
+      let ty = type_of env c in
+      EConstr.of_constr
+       (Inductiveops.type_of_projection_knowing_arg env sigma p c ty)
     | T.Meta n ->
           (try Termops.strip_outer_cast sigma (Int.List.assoc n metamap)
            with Not_found -> CErrors.anomaly ~label:"type_of" (Pp.str "this is not a well-typed term"))
@@ -478,7 +481,10 @@ res*)
           (* Now that we have all the auxiliary functions we  *)
           (* can finally proceed with the main case analysis. *)
           match EConstr.kind evar_map tt with
-          | Constr.Proj _ -> assert false
+          | Constr.Proj (c,t) ->
+             Hashtbl.add ids_to_inner_sorts fresh_id'' innersort ;
+             let kn,i = Names.Projection.inductive c in
+             Acic.AProj(fresh_id'',uri_of_kernel_name (Inductive kn),i,aux' env idrefs t)
           | Constr.Rel n ->
               let id =
                match Context.Rel.Declaration.get_name (List.nth (Environ.rel_context env) (n - 1)) with

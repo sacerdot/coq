@@ -28,7 +28,7 @@
 
 <!-- CIC term declaration -->
 
-<!ENTITY % term '(LAMBDA|CAST|PROD|REL|SORT|APPLY|VAR|META|IMPLICIT|CONST|
+<!ENTITY % term '(LAMBDA|CAST|PROD|REL|PROJ|SORT|APPLY|VAR|META|IMPLICIT|CONST|
                   LETIN|MUTIND|MUTCONSTRUCT|MUTCASE|FIX|COFIX|instantiate)'>
 
 <!-- CIC sorts -->
@@ -125,6 +125,13 @@
 <!ELEMENT CAST (term,type)>
 <!ATTLIST CAST
           id   ID     #REQUIRED
+          sort %sort; #REQUIRED>
+
+<!ELEMENT PROJ %term;>
+<!ATTLIST PROJ
+          id   ID     #REQUIRED
+          uri    CDATA   #REQUIRED
+          noType NMTOKEN #REQUIRED
           sort %sort; #REQUIRED>
 
 <!ELEMENT REL EMPTY>

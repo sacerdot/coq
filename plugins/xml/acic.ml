@@ -78,6 +78,7 @@ type aconstr =
   | ACase      of id * uri * int * aconstr * aconstr * aconstr list
   | AFix       of id * int * ainductivefun list
   | ACoFix     of id * int * acoinductivefun list
+  | AProj      of id * uri * int * aconstr
 and ainductivefun =
  id * Id.t * int * aconstr * aconstr
 and acoinductivefun =

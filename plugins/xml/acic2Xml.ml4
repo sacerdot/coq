@@ -39,6 +39,11 @@ let print_term ids_to_inner_sorts =
          X.xml_empty "REL"
           ["value",(string_of_int n) ; "binder",(N.Id.to_string b) ;
            "id",id ; "idref",idref; "sort",sort]
+     | A.AProj (id,uri,i,t) ->
+        let sort = Hashtbl.find ids_to_inner_sorts id in
+        X.xml_nempty "PROJ"
+         ["uri", uri ; "noType",(string_of_int i) ; "id",id ; "sort",sort]
+         (aux t)
      | A.AVar (id,uri) ->
         let sort = Hashtbl.find ids_to_inner_sorts id in
          X.xml_empty "VAR" ["uri", uri ; "id",id ; "sort",sort]
