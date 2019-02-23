@@ -178,7 +178,10 @@ let find_hyps env t =
     | Constr.Meta _
     | Constr.Evar _
     | Constr.Sort _ -> l
-    | Constr.Proj _ -> ignore(CErrors.todo "Proj in find_hyps"); assert false
+    | Constr.Proj (p,t) ->
+       let ind = Names.Projection.inductive p in
+       let hyps = (fst (Inductive.lookup_mind_specif env ind)).Declarations.mind_hyps in
+        aux (map_and_filter l hyps @ l) t
     | Constr.Cast (te,_, ty) -> aux (aux l te) ty
     | Constr.Prod (_,s,t) -> aux (aux l s) t
     | Constr.Lambda (_,s,t) -> aux (aux l s) t
