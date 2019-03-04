@@ -549,6 +549,7 @@ and print_expression of_ xml_library_root env mp expr =
 and print_subexpressions xml_library_root env mp exprs =
  if exprs <> [] then begin
   Buffer.reset expr_buffer ;
+  expr_output_string "<supertypes>\n" ;
   List.iter (fun sub ->
     match sub.mod_type_alg with
        None -> assert false
@@ -556,6 +557,7 @@ and print_subexpressions xml_library_root env mp exprs =
         print_functor_expr xml_library_root env mp expr ;
         expr_output_string "\n"
   ) exprs ;
+  expr_output_string "\n</supertypes>" ;
   save_sub_expr_buffer xml_library_root mp
  end
 
