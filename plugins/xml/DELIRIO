@@ -1,27 +1,28 @@
 * let error = ..
   CErrors.*
+* uniformare codice di stampa/creazione uri e filename
+* documentare che ora settare COQ_XML_LIBRARY_ROOT implica -xml
+  forse si può proprio togliere il flag -xml? e togliere nuovi
+  comandi da LTac
 
-TODO/BAD:
-- documentare che ora settare COQ_XML_LIBRARY_ROOT implica -xml
-  forse si può proprio togliere il flag -xml?
-- library/global.ml
-(** Changing the (im)predicativity of the system *)
-val set_engagement : Declarations.engagement -> unit
-
+TODO:
+- documentare cambio DTD
 - doubleTypeInference non fa nulla
 
+UNIVERSI:
+- library/global.ml
+  (** Changing the (im)predicativity of the system *)
+  val set_engagement : Declarations.engagement -> unit
+  + type-in-type
+- nelle sezioni posso avere universi monomorfi e polimorfi e
+  constraint monomorfi e polimorfi
+- mettere hook su Declare.do_universe e Declare.do_constraint
+- varianza
+
+SEZIONI:
 - sezioni: le definizioni sono _fuori_ dalla sezione :-(
-- Universi
-- Primitive record projection e FakeRecord/PrimRecord/*
-  coq-mtac2 fallisce per primitive projection
-
-- documentare cambio DTD
-- uniformare codice di stampa/creazione uri!
-
 - esportare versione da cucinare e cucinata per risolvere il problema delle
   sezioni nei module type
-
-ORRORE:
 - bud in cic2acic.ml: uso di Lib.cwd per le sezioni. Che succede se le annido?
 - le sezioni nei moduli che hanno un module type quando esportate
   vengono esportate in maniera incoerente: nell'interfaccia c'è solo

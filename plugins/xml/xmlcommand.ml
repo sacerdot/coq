@@ -234,7 +234,7 @@ let mk_constant_obj id bo ty hyps =
        (Id.to_string id, Some (Unshare.unshare c), ty,params)
 ;;
 
-let mk_inductive_obj env sp mib packs nparams hyps finite =
+let mk_inductive_obj env sp mib packs nparams hyps finite universes =
   let hyps = string_list_of_named_context_list hyps in
   let params = uris_of_params hyps in
 (*  let nparams = extract_nparams packs in *)
@@ -246,7 +246,7 @@ let mk_inductive_obj env sp mib packs nparams hyps finite =
        let {Declarations.mind_consnames=consnames ;
             Declarations.mind_typename=typename } = p
        in
-       let inst = Univ.AUContext.instance (Declareops.inductive_polymorphic_context mib) in
+       let inst = Univ.UContext.instance (Univ.AUContext.repr (Declareops.inductive_polymorphic_context mib)) in
        let arity = Inductive.type_of_inductive env ((mib,p),inst) in
        let lc = Inductiveops.arities_of_constructors env ((sp,!tyno),inst) in
        let cons =
@@ -356,6 +356,32 @@ let print_object_kind uri (xmltag,variation) =
   theory_output_string s
 ;;
 
+let print_univconstraints fn us =
+ let constraints =
+  match us with
+    `CUnivConstraints (Declarations.Monomorphic_const u)
+  | `IUnivConstraints (Declarations.Monomorphic_ind u) ->
+      Univ.UContext.constraints (Univ.ContextSet.to_context u)
+  | `CUnivConstraints (Declarations.Polymorphic_const u)
+  | `IUnivConstraints (Declarations.Polymorphic_ind u) ->
+      Univ.UContext.constraints (Univ.AUContext.repr u)
+  | `IUnivConstraints (Declarations.Cumulative_ind u) ->
+      Univ.UContext.constraints (Univ.AUContext.repr
+       (Univ.ACumulativityInfo.univ_context u))
+  | `None -> Univ.Constraint.empty
+ in
+  let ch =
+   match fn with None -> stdout | Some fn -> open_out (fn ^ ".constraints.xml") in
+  output_string ch "<CONSTRAINTS>\n" ;
+  Univ.Constraint.iter
+   (fun (l1,r,l2) ->
+     output_string ch (
+      "<CONSTRAINT lhs=\"" ^ Univ.Level.to_string l1 ^ "\" rel=\"" ^
+      (match r with Univ.Lt -> "lt" | Univ.Eq -> "eq" | Univ.Le -> "le") ^
+      "\" rhs=\"" ^ Univ.Level.to_string l2 ^ "\"/>\n")) constraints ;
+  output_string ch "</CONSTRAINTS>" ;
+  close_out ch
+
 (* print id dest                                                          *)
 (*  where sp   is the qualified identifier (section path) of a            *)
 (*             definition/theorem, variable or inductive definition       *)
@@ -365,19 +391,20 @@ let print_object_kind uri (xmltag,variation) =
 (*       form of the definition (all the parameters are                   *)
 (*       lambda-abstracted, but the object can still refer to variables)  *)
 let print ~in_theory env glob_ref kind xml_library_root =
-  let tag,obj =
+  let tag,obj,univconstraints =
    match glob_ref with
       Globnames.VarRef id ->
        (* this kn is fake since it is not provided by Coq *)
        let kn = Lib.make_kn id in
        let var = Environ.lookup_named id env in
-        Cic2acic.Variable kn,mk_variable_obj env id var
+        Cic2acic.Variable kn,mk_variable_obj env id var,`None
     | Globnames.ConstRef kn ->
        let id = Label.to_id (Names.Constant.label kn) in
        let cb = Environ.lookup_constant kn env in
        let val0 = cb.Declarations.const_body in
        let typ = cb.Declarations.const_type in
        let hyps = cb.Declarations.const_hyps in
+       let univconstraints = cb.Declarations.const_universes in
        let val0 =
         match val0 with
            Undef _ -> None
@@ -386,21 +413,23 @@ let print ~in_theory env glob_ref kind xml_library_root =
             Some (Opaqueproof.force_proof (Environ.opaque_tables env) x) in
        let val0 = Option.map EConstr.of_constr val0 in
        let typ = EConstr.of_constr typ in
-        Cic2acic.Constant kn,mk_constant_obj id val0 typ hyps
+        Cic2acic.Constant kn,mk_constant_obj id val0 typ hyps,`CUnivConstraints univconstraints
     | Globnames.IndRef (kn,_) ->
        let mib = Environ.lookup_mind kn env in
        let {Declarations.mind_nparams=nparams;
 	    Declarations.mind_packets=packs ;
             Declarations.mind_hyps=hyps;
+            Declarations.mind_universes=univconstraints;
             Declarations.mind_finite=finite} = mib in
-          Cic2acic.Inductive kn,mk_inductive_obj env kn mib packs nparams hyps (finite<>CoFinite)
+          Cic2acic.Inductive kn,mk_inductive_obj env kn mib packs nparams hyps (finite<>CoFinite) univconstraints,`IUnivConstraints univconstraints
     | Globnames.ConstructRef _ ->
        error ("a single constructor cannot be printed in XML")
   in
   let fn = filename_of_path xml_library_root tag in
   let uri = Cic2acic.uri_of_kernel_name tag in
   if in_theory then print_object_kind uri (kind ());
-  print_object uri obj env Evd.empty fn
+  print_object uri obj env Evd.empty fn ;
+  print_univconstraints fn univconstraints
 ;;
 
 let print_ref qid fn =

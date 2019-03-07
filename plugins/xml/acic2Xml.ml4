@@ -28,6 +28,9 @@ let rec find_last_id =
 
 let export_existential ev = string_of_int (Evar.repr ev)
 
+let string_of_univinst inst =
+ Pp.string_of_ppcmds (Univ.Instance.pr Univ.Level.pr inst)
+
 let print_term ids_to_inner_sorts =
  let rec aux =
   let module A = Acic in
@@ -57,11 +60,13 @@ let print_term ids_to_inner_sorts =
             ) [< >] (List.rev l))
      | A.ASort (id,s) ->
         let string_of_sort =
+         Pp.string_of_ppcmds (Univ.Universe.pr (Sorts.univ_of_sort s)) in
+(*
          match Sorts.family s with
             Sorts.InProp -> "Prop"
           | Sorts.InSet  -> "Set"
           | Sorts.InType -> "Type"
-        in
+        in*)
          X.xml_empty "SORT" ["value",string_of_sort ; "id",id]
      | A.AProds (prods,t) ->
         let last_id = find_last_id prods in
@@ -131,19 +136,22 @@ let print_term ids_to_inner_sorts =
          X.xml_nempty "APPLY" ["id",id ; "sort",sort]
           [< (List.fold_left (fun i x -> [< i ; (aux x) >]) [<>] li)
           >]
-     | A.AConst (id,subst,uri) ->
+     | A.AConst (id,subst,univinst,uri) ->
         let sort = Hashtbl.find ids_to_inner_sorts id in
-        let attrs = ["uri", uri ; "id",id ; "sort",sort] in
+        let univinst = string_of_univinst univinst in
+        let attrs = ["uri", uri ; "id",id ; "sort",sort ; "univparams",univinst] in
          aux_subst (X.xml_empty "CONST" attrs) subst
-     | A.AInd (id,subst,uri,i) ->
-        let attrs = ["uri", uri ; "noType",(string_of_int i) ; "id",id] in
+     | A.AInd (id,subst,univinst,uri,i) ->
+        let univinst = string_of_univinst univinst in
+        let attrs = ["uri", uri ; "noType",(string_of_int i) ; "id",id ; "univparams",univinst] in
          aux_subst (X.xml_empty "MUTIND" attrs) subst
-     | A.AConstruct (id,subst,uri,i,j) ->
+     | A.AConstruct (id,subst,univinst,uri,i,j) ->
         let sort = Hashtbl.find ids_to_inner_sorts id in
+        let univinst = string_of_univinst univinst in
         let attrs =
          ["uri", uri ;
           "noType",(string_of_int i) ; "noConstr",(string_of_int j) ;
-          "id",id ; "sort",sort]
+          "id",id ; "sort",sort ; "univparams",univinst]
         in
          aux_subst (X.xml_empty "MUTCONSTRUCT" attrs) subst
      | A.ACase (id,uri,typeno,ty,te,patterns) ->

@@ -72,9 +72,9 @@ type aconstr =
   | ALambdas   of (id * Name.t * aconstr) list * aconstr
   | ALetIns    of (id * Name.t * aconstr) list * aconstr
   | AApp       of id * aconstr list
-  | AConst     of id * explicit_named_substitution * uri
-  | AInd       of id * explicit_named_substitution * uri * int
-  | AConstruct of id * explicit_named_substitution * uri * int * int
+  | AConst     of id * explicit_named_substitution * Univ.Instance.t * uri
+  | AInd       of id * explicit_named_substitution * Univ.Instance.t * uri * int
+  | AConstruct of id * explicit_named_substitution * Univ.Instance.t * uri * int * int
   | ACase      of id * uri * int * aconstr * aconstr * aconstr list
   | AFix       of id * int * ainductivefun list
   | ACoFix     of id * int * acoinductivefun list

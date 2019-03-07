@@ -676,7 +676,7 @@ res*)
               if is_a_Prop innersort  && expected_available then
                add_inner_type fresh_id'' ;
               let compute_result_if_eta_expansion_not_required _ _ =
-               Acic.AConst (fresh_id'', subst, (uri_of_kernel_name (Constant kn)))
+               Acic.AConst (fresh_id'', subst, EConstr.EInstance.kind evar_map u, (uri_of_kernel_name (Constant kn)))
               in
                let (_,subst') = subst in
                 explicit_substitute_and_eta_expand_if_required tt []
@@ -684,7 +684,7 @@ res*)
                  compute_result_if_eta_expansion_not_required
            | Constr.Ind ((kn,i),u) ->
               let compute_result_if_eta_expansion_not_required _ _ =
-               Acic.AInd (fresh_id'', subst, (uri_of_kernel_name (Inductive kn)), i)
+               Acic.AInd (fresh_id'', subst, EConstr.EInstance.kind evar_map u, (uri_of_kernel_name (Inductive kn)), i)
               in
                let (_,subst') = subst in
                 explicit_substitute_and_eta_expand_if_required tt []
@@ -696,7 +696,7 @@ res*)
                add_inner_type fresh_id'' ;
               let compute_result_if_eta_expansion_not_required _ _ =
                Acic.AConstruct
-                (fresh_id'', subst, (uri_of_kernel_name (Inductive kn)), i, j)
+                (fresh_id'', subst, EConstr.EInstance.kind evar_map u, (uri_of_kernel_name (Inductive kn)), i, j)
               in
                let (_,subst') = subst in
                 explicit_substitute_and_eta_expand_if_required tt []
