@@ -10,14 +10,9 @@ TODO:
 - doubleTypeInference non fa nulla
 
 UNIVERSI:
-- library/global.ml
-  (** Changing the (im)predicativity of the system *)
-  val set_engagement : Declarations.engagement -> unit
-  + type-in-type
 - nelle sezioni posso avere universi monomorfi e polimorfi e
   constraint monomorfi e polimorfi
 - mettere hook su Declare.do_universe e Declare.do_constraint
-- varianza
 
 SEZIONI:
 - sezioni: le definizioni sono _fuori_ dalla sezione :-(

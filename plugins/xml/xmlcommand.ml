@@ -357,18 +357,22 @@ let print_object_kind uri (xmltag,variation) =
 ;;
 
 let print_univconstraints fn us =
- let constraints =
+ let constraints,variance =
   match us with
     `CUnivConstraints (Declarations.Monomorphic_const u)
   | `IUnivConstraints (Declarations.Monomorphic_ind u) ->
-      Univ.UContext.constraints (Univ.ContextSet.to_context u)
+      Univ.UContext.constraints (Univ.ContextSet.to_context u),[]
   | `CUnivConstraints (Declarations.Polymorphic_const u)
   | `IUnivConstraints (Declarations.Polymorphic_ind u) ->
-      Univ.UContext.constraints (Univ.AUContext.repr u)
+      Univ.UContext.constraints (Univ.AUContext.repr u),[]
   | `IUnivConstraints (Declarations.Cumulative_ind u) ->
-      Univ.UContext.constraints (Univ.AUContext.repr
-       (Univ.ACumulativityInfo.univ_context u))
-  | `None -> Univ.Constraint.empty
+      let uctx =
+       Univ.AUContext.repr (Univ.ACumulativityInfo.univ_context u) in
+      Univ.UContext.constraints uctx,
+      List.combine
+       (Array.to_list (Univ.Instance.to_array (Univ.UContext.instance uctx)))
+       (Array.to_list (Univ.ACumulativityInfo.variance u))
+  | `None -> Univ.Constraint.empty,[]
  in
   let ch =
    match fn with None -> stdout | Some fn -> open_out (fn ^ ".constraints.xml") in
@@ -379,6 +383,15 @@ let print_univconstraints fn us =
       "<CONSTRAINT lhs=\"" ^ Univ.Level.to_string l1 ^ "\" rel=\"" ^
       (match r with Univ.Lt -> "lt" | Univ.Eq -> "eq" | Univ.Le -> "le") ^
       "\" rhs=\"" ^ Univ.Level.to_string l2 ^ "\"/>\n")) constraints ;
+  List.iter
+   (fun (l,v) ->
+     output_string ch (
+      "<VARIANCE for=\"" ^ Univ.Level.to_string l ^ "\" value=\"" ^
+      (match v with
+        | Univ.Variance.Irrelevant -> "irrelevant"
+        | Univ.Variance.Covariant -> "covariant"
+        | Univ.Variance.Invariant -> "invariant") ^ "\"/>\n"
+   )) variance ;
   output_string ch "</CONSTRAINTS>" ;
   close_out ch
 
@@ -813,7 +826,16 @@ let _ =
       "%xhtml-symbol.ent;\n" ^
       "]>\n\n");
      theory_output_string "<html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:ht=\"http://www.cs.unibo.it/helm/namespaces/helm-theory\" xmlns:helm=\"http://www.cs.unibo.it/helm\">\n";
-     theory_output_string "<head></head>\n<body>\n")
+     theory_output_string "<head></head>\n<body>\n";
+     let env = Global.env () in
+     let is = Environ.is_impredicative_set env in
+     let {Declarations.check_guarded=cg ; check_universes=cu } =
+      Environ.typing_flags env in
+     theory_output_string
+      ("<ht:TYPESYSTEM" ^
+       " impredicative_set=\"" ^ string_of_bool is ^ "\"" ^
+       " check_guarded=\"" ^ string_of_bool cg ^ "\"" ^
+       " check_universes=\"" ^ string_of_bool cu ^ "\"/>\n"))
 ;;
 
 let _ =
