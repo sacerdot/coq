@@ -40,6 +40,13 @@ let relUri_of_id_list l = String.concat "/" (List.rev_map Id.to_string l)
 
 (* FUNCTIONS TO PRINT A SINGLE OBJECT OF COQ *)
 
+let open_section,close_section,push_section_universe,get_section_universes =
+ let s = ref [] in
+ (fun () -> s := [] :: !s),
+ (fun () -> match !s with [] -> assert false | _::tl -> s := tl),
+ (fun u -> match !s with [] -> assert false | hd::tl -> s := (u::hd)::tl),
+ (fun () -> List.fold_right (@) !s [])
+
 let loc = ref None
 let _ = Hook.set Stm.xml_parse_gallina (fun l -> loc := Some l)
 let get_loc () =
@@ -222,22 +229,23 @@ let mk_variable_obj env id var =
     (Id.to_string id, Option.map EConstr.of_constr unsharedbody, Unshare.unshare (EConstr.of_constr typ), params)
 ;;
 
-let mk_constant_obj id bo ty hyps =
+let mk_constant_obj id bo ty hyps univparams =
  let hyps = string_list_of_named_context_list hyps in
  let ty = Unshare.unshare ty in
  let params = uris_of_params hyps in
+ let univparams = List.map Univ.Level.to_string univparams in
   match bo with
      None ->
-      Acic.Constant (Id.to_string id,None,ty,params)
+      Acic.Constant (Id.to_string id,None,ty,params,univparams)
    | Some c ->
       Acic.Constant
-       (Id.to_string id, Some (Unshare.unshare c), ty,params)
+       (Id.to_string id, Some (Unshare.unshare c), ty, params, univparams)
 ;;
 
-let mk_inductive_obj env sp mib packs nparams hyps finite universes =
+let mk_inductive_obj env sp mib packs nparams hyps univparams finite universes =
   let hyps = string_list_of_named_context_list hyps in
   let params = uris_of_params hyps in
-(*  let nparams = extract_nparams packs in *)
+  let univparams = List.map Univ.Level.to_string univparams in
    let tys =
     let tyno = ref (Array.length packs) in
     Array.fold_right
@@ -259,7 +267,7 @@ let mk_inductive_obj env sp mib packs nparams hyps finite universes =
          (typename,finite,Unshare.unshare arity,cons)::i
      ) packs []
    in
-    Acic.InductiveDefinition (tys,params,nparams)
+    Acic.InductiveDefinition (tys,nparams,params,univparams)
 ;;
 
 (* The current channel for .theory files *)
@@ -376,6 +384,7 @@ let print_univconstraints fn us =
  in
   let ch =
    match fn with None -> stdout | Some fn -> open_out (fn ^ ".constraints.xml") in
+  output_string ch "<?xml version=\"1.0\" encoding=\"latin1\"?>\n";
   output_string ch "<CONSTRAINTS>\n" ;
   Univ.Constraint.iter
    (fun (l1,r,l2) ->
@@ -418,6 +427,13 @@ let print ~in_theory env glob_ref kind xml_library_root =
        let typ = cb.Declarations.const_type in
        let hyps = cb.Declarations.const_hyps in
        let univconstraints = cb.Declarations.const_universes in
+       let univparams =
+        get_section_universes () @
+         (match univconstraints with
+             Polymorphic_const au ->
+              Array.to_list (Univ.Instance.to_array
+               (Univ.UContext.instance (Univ.AUContext.repr au)))
+           | Monomorphic_const _ -> []) in
        let val0 =
         match val0 with
            Undef _ -> None
@@ -426,7 +442,7 @@ let print ~in_theory env glob_ref kind xml_library_root =
             Some (Opaqueproof.force_proof (Environ.opaque_tables env) x) in
        let val0 = Option.map EConstr.of_constr val0 in
        let typ = EConstr.of_constr typ in
-        Cic2acic.Constant kn,mk_constant_obj id val0 typ hyps,`CUnivConstraints univconstraints
+        Cic2acic.Constant kn,mk_constant_obj id val0 typ hyps univparams,`CUnivConstraints univconstraints
     | Globnames.IndRef (kn,_) ->
        let mib = Environ.lookup_mind kn env in
        let {Declarations.mind_nparams=nparams;
@@ -434,7 +450,18 @@ let print ~in_theory env glob_ref kind xml_library_root =
             Declarations.mind_hyps=hyps;
             Declarations.mind_universes=univconstraints;
             Declarations.mind_finite=finite} = mib in
-          Cic2acic.Inductive kn,mk_inductive_obj env kn mib packs nparams hyps (finite<>CoFinite) univconstraints,`IUnivConstraints univconstraints
+       let univparams =
+        get_section_universes () @
+         (match univconstraints with
+             Polymorphic_ind au ->
+              Array.to_list (Univ.Instance.to_array
+               (Univ.UContext.instance (Univ.AUContext.repr au)))
+           | Cumulative_ind cinfo ->
+              Array.to_list (Univ.Instance.to_array
+               (Univ.UContext.instance (Univ.AUContext.repr
+                (Univ.ACumulativityInfo.univ_context cinfo))))
+           | Monomorphic_ind _ -> []) in
+       Cic2acic.Inductive kn,mk_inductive_obj env kn mib packs nparams hyps univparams (finite<>CoFinite) univconstraints,`IUnivConstraints univconstraints
     | Globnames.ConstructRef _ ->
        error ("a single constructor cannot be printed in XML")
   in
@@ -585,12 +612,14 @@ and print_functor_expr xml_library_root env mp expr =
 
 and print_expression of_ xml_library_root env mp expr =
  Buffer.reset expr_buffer ;
+ expr_output_string "<?xml version=\"1.0\" encoding=\"latin1\"?>\n";
  print_functor_expr xml_library_root env mp expr ;
  save_expr_buffer of_ xml_library_root mp
 
 and print_subexpressions xml_library_root env mp exprs =
  if exprs <> [] then begin
   Buffer.reset expr_buffer ;
+  expr_output_string "<?xml version=\"1.0\" encoding=\"latin1\"?>\n";
   expr_output_string "<supertypes>\n" ;
   List.iter (fun sub ->
     match sub.mod_type_alg with
@@ -783,6 +812,30 @@ let _ =
 ;;
 
 let _ =
+  Hook.set Declare.xml_declare_universes
+   (function (polymorphic,univs) -> if not !ignore then begin
+     List.iter (fun (id,(dp,n)) ->
+      let lvl = Univ.Level.make dp n in
+       theory_output_string ("<ht:UNIVERSE uri=\"" ^
+       Univ.Level.to_string lvl ^ "\" id=\"" ^ Names.Id.to_string id ^
+       "\" global=\""^ string_of_bool (not polymorphic) ^ "\"" ^ get_loc () ^ "/>");
+      if polymorphic then push_section_universe lvl
+     ) univs
+    end)
+;;
+
+let _ =
+  Hook.set Declare.xml_declare_constraints
+   (function (polymorphic,constraints) -> if not !ignore then begin
+     Univ.Constraint.iter (fun (l1,r,l2) ->
+      theory_output_string
+      ("<ht:CONSTRAINT global=\"" ^ string_of_bool (not polymorphic) ^ "\" lhs=\"" ^ Univ.Level.to_string l1 ^ "\" rel=\"" ^
+      (match r with Univ.Lt -> "lt" | Univ.Eq -> "eq" | Univ.Le -> "le") ^
+      "\" rhs=\"" ^ Univ.Level.to_string l2 ^ "\"/>\n")) constraints
+    end)
+;;
+
+let _ =
   Hook.set Declare.xml_declare_constant
    (function (internal,kn) -> if not !ignore then
 try (Printexc.record_backtrace true ;
@@ -882,6 +935,7 @@ let _ = Hook.set CLexer.xml_output_comment (theory_output_string ~do_not_quote:t
 let _ =
   Hook.set Lib.xml_open_section
     (fun _ ->
+      open_section () ;
       let s = "cic:" ^ uri_of_dirpath (Lib.cwd ()) in
       theory_output_string ("<ht:SECTION uri=\""^s^"\"" ^ get_loc () ^ ">"))
 ;;
@@ -889,6 +943,7 @@ let _ =
 let _ =
   Hook.set Lib.xml_close_section
     (fun _ ->
+      close_section () ;
       print_section_role xml_library_root (Lib.cwd ()) ;
       theory_output_string "</ht:SECTION>")
 ;;

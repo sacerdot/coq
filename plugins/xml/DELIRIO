@@ -10,9 +10,7 @@ TODO:
 - doubleTypeInference non fa nulla
 
 UNIVERSI:
-- nelle sezioni posso avere universi monomorfi e polimorfi e
-  constraint monomorfi e polimorfi
-- mettere hook su Declare.do_universe e Declare.do_constraint
+- i constraints locali delle sezioni vanno stampati fra i constraints
 
 SEZIONI:
 - sezioni: le definizioni sono _fuori_ dalla sezione :-(

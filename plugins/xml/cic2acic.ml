@@ -823,14 +823,14 @@ let acic_object_of_cic_object env sigma obj =
   in
    let aobj =
     match obj with
-      Acic.Constant (id,bo,ty,params) ->
+      Acic.Constant (id,bo,ty,params,univparams) ->
        let abo =
         match bo with
            None -> None
          | Some bo' -> Some (acic_term_of_cic_term' bo' (Some ty))
        in
        let aty = acic_term_of_cic_term' ty None in
-        Acic.AConstant (fresh_id (),id,abo,aty,params)
+        Acic.AConstant (fresh_id (),id,abo,aty,params,univparams)
     | Acic.Variable (id,bo,ty,params) ->
        let abo =
         match bo with
@@ -892,7 +892,7 @@ let acic_object_of_cic_object env sigma obj =
        let abo = acic_term_of_cic_term_context' env [] sigma bo (Some ty) in
        let aty = acic_term_of_cic_term_context' env [] sigma ty None in
         Acic.ACurrentProof (fresh_id (),id,aconjectures,abo,aty)
-    | Acic.InductiveDefinition (tys,params,paramsno) ->
+    | Acic.InductiveDefinition (tys,paramsno,params,univparams) ->
        let env' =
         List.fold_right
          (fun (name,_,arity,_) env ->
@@ -916,7 +916,7 @@ let acic_object_of_cic_object env sigma obj =
              (id,name,inductive,aty,acons)
          ) (List.rev idrefs) tys
        in
-       Acic.AInductiveDefinition (fresh_id (),atys,params,paramsno)
+       Acic.AInductiveDefinition (fresh_id (),atys,paramsno,params,univparams)
    in
     aobj,ids_to_terms,constr_to_ids,ids_to_father_ids,ids_to_inner_sorts,
      ids_to_inner_types,ids_to_conjectures,ids_to_hypotheses

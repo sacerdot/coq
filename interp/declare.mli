@@ -75,6 +75,8 @@ val declare_mind : mutual_inductive_entry -> object_name * bool
 val xml_declare_variable : (object_name -> unit) Hook.t
 val xml_declare_constant : (internal_flag * Constant.t -> unit) Hook.t
 val xml_declare_inductive : (bool * object_name -> unit) Hook.t
+val xml_declare_universes : (bool * (Names.Id.t * UnivGen.universe_id) list -> unit) Hook.t
+val xml_declare_constraints : (bool * Univ.Constraint.t -> unit) Hook.t
 
 (** Declaration messages *)
 

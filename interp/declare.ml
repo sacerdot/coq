@@ -145,6 +145,8 @@ let update_tables c =
 let (f_xml_declare_variable, xml_declare_variable) = Hook.make ~default:ignore ()
 let (f_xml_declare_constant, xml_declare_constant) = Hook.make ~default:ignore ()
 let (f_xml_declare_inductive, xml_declare_inductive) = Hook.make ~default:ignore ()
+let (f_xml_declare_universes, xml_declare_universes) = Hook.make ~default:ignore ()
+let (f_xml_declare_constraints, xml_declare_constraints) = Hook.make ~default:ignore ()
 
 let if_xml f x = if !Flags.xml_export then f x else ()
 
@@ -608,6 +610,7 @@ let do_universe poly l =
       (id, lev)) l
   in
   let src = if poly then BoundUniv else UnqualifiedUniv in
+  if_xml (Hook.get f_xml_declare_universes) (poly,l);
   List.iter (fun (id,lev) ->
       ignore(Lib.add_leaf id (input_universe (src, lev))))
     l
@@ -638,5 +641,6 @@ let do_constraint poly l =
      Constraint.add (lu, d, ru) acc)
     Constraint.empty l
   in
+  if_xml (Hook.get f_xml_declare_constraints) (poly,constraints);
   let uctx = ContextSet.add_constraints constraints ContextSet.empty in
   declare_universe_context poly uctx

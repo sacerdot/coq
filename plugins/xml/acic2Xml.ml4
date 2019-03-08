@@ -214,6 +214,7 @@ let print_term ids_to_inner_sorts =
 ;;
 
 let param_attribute_of_params params = String.concat " " params
+let univparam_attribute_of_univparams univparams = String.concat " " univparams
 
 let print_object uri ids_to_inner_sorts =
  let aux =
@@ -269,8 +270,9 @@ let print_object uri ids_to_inner_sorts =
          >]
         in
          xmlty, Some xmlbo
-     | A.AConstant (id,n,bo,ty,params) ->
+     | A.AConstant (id,n,bo,ty,params,univparams) ->
         let params' = param_attribute_of_params params in
+        let univparams' = univparam_attribute_of_univparams univparams in
         let xmlbo =
          match bo with
             None -> None
@@ -281,7 +283,7 @@ let print_object uri ids_to_inner_sorts =
                  X.xml_cdata
                   ("<!DOCTYPE ConstantBody SYSTEM \"" ^ dtdname ^ "\">\n") ;
                  X.xml_nempty "ConstantBody"
-                  ["for",uri ; "params",params' ; "id", id]
+                  ["for",uri ; "params",params' ; "univparams",univparams' ; "id", id]
                   [< print_term ids_to_inner_sorts bo >]
               >]
         in
@@ -289,7 +291,7 @@ let print_object uri ids_to_inner_sorts =
          [< X.xml_cdata "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n" ;
             X.xml_cdata ("<!DOCTYPE ConstantType SYSTEM \""^dtdname ^"\">\n");
              X.xml_nempty "ConstantType"
-              ["name",n ; "params",params' ; "id", id]
+              ["name",n ; "params",params' ; "univparams",univparams' ; "id", id]
               [< print_term ids_to_inner_sorts ty >]
          >]
         in
@@ -308,15 +310,17 @@ let print_object uri ids_to_inner_sorts =
                 X.xml_nempty "type" [] (print_term ids_to_inner_sorts ty)
              >]
          >], None
-     | A.AInductiveDefinition (id,tys,params,nparams) ->
+     | A.AInductiveDefinition (id,tys,nparams,params,univparams) ->
         let params' = param_attribute_of_params params in
+        let univparams' = univparam_attribute_of_univparams univparams in
          [< X.xml_cdata "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n" ;
             X.xml_cdata ("<!DOCTYPE InductiveDefinition SYSTEM \"" ^
              dtdname ^ "\">\n") ;
             X.xml_nempty "InductiveDefinition"
              ["noParams",string_of_int nparams ;
               "id",id ;
-              "params",params']
+              "params",params' ;
+              "univparams",univparams']
              [< (List.fold_left
                   (fun i (id,typename,finite,arity,cons) ->
                     [< i ;

@@ -42,11 +42,13 @@ type conjecture = Evar.t * context * constr
 type metasenv = conjecture list
 
 type params = uri list
+type univparams = string list
 
 type obj =
    Constant of string *                            (* id,           *)
     constr option * constr *                       (*  value, type, *)
-    params                                         (*  parameters   *)
+    params *                                       (*  parameters,  *)
+    univparams                                     (*  universe parameters *)
  | Variable of
     string * constr option * constr *              (* name, body, type *)
     params                                         (*  parameters   *)
@@ -55,7 +57,9 @@ type obj =
     constr * constr                                (*  value, type        *)
  | InductiveDefinition of
     inductiveType list *                           (* inductive types ,      *)
-    params * int                                   (*  parameters,n ind. pars*)
+    int *                                          (*  n ind. pars*)
+    params *                                      (*  parameters *)
+    univparams                                     (*  universe parameters *)
 and inductiveType =
  Id.t * bool * constr *                 (* typename, inductive, arity *)
   constructor list                            (*  constructors              *)
@@ -92,7 +96,8 @@ type ametasenv = aconjecture list
 type aobj =
    AConstant of id * string *                      (* id,           *)
     aconstr option * aconstr *                     (*  value, type, *)
-    params                                         (*  parameters   *)
+    params *                                       (*  parameters   *)
+    univparams                                     (*  universe parameters *)
  | AVariable of id *
     string * aconstr option * aconstr *            (* name, body, type *)
     params                                         (*  parameters   *)
@@ -100,8 +105,10 @@ type aobj =
     string * ametasenv *                           (*  name, conjectures, *)
     aconstr * aconstr                              (*  value, type        *)
  | AInductiveDefinition of id *
-    anninductiveType list *                        (* inductive types ,      *)
-    params * int                                   (*  parameters,n ind. pars*)
+    anninductiveType list *                        (* inductive types *)
+    int *                                          (*  n ind. pars*)
+    params *                                       (*  parameters *)
+    univparams                                     (*  universe parameters *)
 and anninductiveType =
  id * Id.t * bool * aconstr *           (* typename, inductive, arity *)
   annconstructor list                         (*  constructors              *)
