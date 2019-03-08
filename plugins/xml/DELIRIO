@@ -4,13 +4,12 @@
 * documentare che ora settare COQ_XML_LIBRARY_ROOT implica -xml
   forse si può proprio togliere il flag -xml? e togliere nuovi
   comandi da LTac
+* documentare i nuovi universi e il loro rapporto con le sezioni
+  (variabili monomorfe, astrazione su tutti, etc.)
 
 TODO:
 - documentare cambio DTD
 - doubleTypeInference non fa nulla
-
-UNIVERSI:
-- i constraints locali delle sezioni vanno stampati fra i constraints
 
 SEZIONI:
 - sezioni: le definizioni sono _fuori_ dalla sezione :-(

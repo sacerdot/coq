@@ -40,12 +40,14 @@ let relUri_of_id_list l = String.concat "/" (List.rev_map Id.to_string l)
 
 (* FUNCTIONS TO PRINT A SINGLE OBJECT OF COQ *)
 
-let open_section,close_section,push_section_universe,get_section_universes =
+let open_section,close_section,push_section_universe,push_section_constraint,get_section_universes,get_section_constraints =
  let s = ref [] in
- (fun () -> s := [] :: !s),
+ (fun () -> s := ([],[]) :: !s),
  (fun () -> match !s with [] -> assert false | _::tl -> s := tl),
- (fun u -> match !s with [] -> assert false | hd::tl -> s := (u::hd)::tl),
- (fun () -> List.fold_right (@) !s [])
+ (fun u -> match !s with [] -> assert false | (us,cs)::tl -> s := (u::us,cs)::tl),
+ (fun c -> match !s with [] -> assert false | (us,cs)::tl -> s := (us,c::cs)::tl),
+ (fun () -> List.fold_right (@) (List.map fst !s) []),
+ (fun () -> List.fold_right (@) (List.map snd !s) [])
 
 let loc = ref None
 let _ = Hook.set Stm.xml_parse_gallina (fun l -> loc := Some l)
@@ -382,20 +384,21 @@ let print_univconstraints fn us =
        (Array.to_list (Univ.ACumulativityInfo.variance u))
   | `None -> Univ.Constraint.empty,[]
  in
+  let constraints = Univ.Constraint.elements constraints @ get_section_constraints () in
   let ch =
    match fn with None -> stdout | Some fn -> open_out (fn ^ ".constraints.xml") in
   output_string ch "<?xml version=\"1.0\" encoding=\"latin1\"?>\n";
   output_string ch "<CONSTRAINTS>\n" ;
-  Univ.Constraint.iter
+  List.iter
    (fun (l1,r,l2) ->
      output_string ch (
-      "<CONSTRAINT lhs=\"" ^ Univ.Level.to_string l1 ^ "\" rel=\"" ^
+      " <CONSTRAINT lhs=\"" ^ Univ.Level.to_string l1 ^ "\" rel=\"" ^
       (match r with Univ.Lt -> "lt" | Univ.Eq -> "eq" | Univ.Le -> "le") ^
       "\" rhs=\"" ^ Univ.Level.to_string l2 ^ "\"/>\n")) constraints ;
   List.iter
    (fun (l,v) ->
      output_string ch (
-      "<VARIANCE for=\"" ^ Univ.Level.to_string l ^ "\" value=\"" ^
+      " <VARIANCE for=\"" ^ Univ.Level.to_string l ^ "\" value=\"" ^
       (match v with
         | Univ.Variance.Irrelevant -> "irrelevant"
         | Univ.Variance.Covariant -> "covariant"
@@ -827,11 +830,13 @@ let _ =
 let _ =
   Hook.set Declare.xml_declare_constraints
    (function (polymorphic,constraints) -> if not !ignore then begin
-     Univ.Constraint.iter (fun (l1,r,l2) ->
+     Univ.Constraint.iter (fun ((l1,r,l2) as cstr) ->
       theory_output_string
-      ("<ht:CONSTRAINT global=\"" ^ string_of_bool (not polymorphic) ^ "\" lhs=\"" ^ Univ.Level.to_string l1 ^ "\" rel=\"" ^
-      (match r with Univ.Lt -> "lt" | Univ.Eq -> "eq" | Univ.Le -> "le") ^
-      "\" rhs=\"" ^ Univ.Level.to_string l2 ^ "\"/>\n")) constraints
+       ("<ht:CONSTRAINT global=\"" ^ string_of_bool (not polymorphic) ^ "\" lhs=\"" ^ Univ.Level.to_string l1 ^ "\" rel=\"" ^
+       (match r with Univ.Lt -> "lt" | Univ.Eq -> "eq" | Univ.Le -> "le") ^
+       "\" rhs=\"" ^ Univ.Level.to_string l2 ^ "\"/>\n") ;
+      if polymorphic then push_section_constraint cstr
+      ) constraints
     end)
 ;;
 
