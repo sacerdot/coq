@@ -8,6 +8,13 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+(** ML Tactic Notations *)
+
+Declare ML Module "ltac_plugin".
+
+(* The XML plugin must be loaded before everything else *)
+Declare ML Module "xml_plugin".
+
 (** These are the notations whose level and associativity are imposed by Coq *)
 
 (** Notations for propositional connectives *)
@@ -119,11 +126,4 @@ Open Scope core_scope.
 Open Scope function_scope.
 Open Scope type_scope.
 
-(** ML Tactic Notations *)
-
-Declare ML Module "ltac_plugin".
-
 Global Set Default Proof Mode "Classic".
-
-(** XML Plugin to be loaded at the very first .v *)
-Declare ML Module "xml_plugin".

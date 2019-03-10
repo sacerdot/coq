@@ -580,14 +580,14 @@ module Html = struct
           printf "<h1 class=\"libtitle\">%s %s</h1>\n\n" ln (get_module true)
     end
 
-  let indentation n = for _i = 1 to n do printf "&nbsp;" done
+  let indentation n = for _i = 1 to n do printf "&#160;" done
 
   let line_break () = printf "<br/>\n"
 
   let empty_line_of_code () =
     printf "\n<br/>\n"
 
-  let nbsp () = printf "&nbsp;"
+  let nbsp () = printf "&#160;"
 
   let char = function
     | '<' -> printf "&lt;"
@@ -776,7 +776,7 @@ module Html = struct
       let strs = List.map (fun r -> match r with
                                     | Str.Text s  -> [s]
                                     | Str.Delim s -> 
-                                        copy "&nbsp;" (String.length s))  
+                                        copy "&#160;" (String.length s))
                           results
       in
         String.concat "" (List.concat strs)
@@ -789,7 +789,7 @@ module Html = struct
            printf "</td>\n") in
     let rec print_assumptions hyps = 
           match hyps with
-          | []                 -> start_assumption "&nbsp;&nbsp;"
+          | []                 -> start_assumption "&#160;&#160;"
           | [(_,hyp)]          -> start_assumption hyp
           | ((_,hyp) :: hyps') -> (start_assumption hyp;
                                    end_assumption ();
@@ -798,8 +798,8 @@ module Html = struct
     print_assumptions assumptions;
     printf "  <td class=\"infrulenamecol\" rowspan=\"3\">\n";
     (match midnm with
-     | None   -> printf "    &nbsp;\n  </td>" 
-     | Some s -> printf "    %s &nbsp;\n  </td>" s);
+     | None   -> printf "    &#160;\n  </td>"
+     | Some s -> printf "    %s &#160;\n  </td>" s);
     printf "</tr>\n";
     printf "<tr class=\"infrulemiddle\">\n";
     printf "  <td class=\"infrule\"><hr /></td>\n";

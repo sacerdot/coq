@@ -7,8 +7,13 @@
 * documentare i nuovi universi e il loro rapporto con le sezioni
   (variabili monomorfe, astrazione su tutti, etc.)
 
+BUGS:
+- pluginz/micromega/Zmicromega.v: il .theory viene tagliato
+- theories/Compat/AdmitAxiom.v: Error: There is already an Ltac named admit.
+
+
 TODO:
-- documentare cambio DTD
+- documentare cambio DTD e decommentare inclusioni DTD
 - doubleTypeInference non fa nulla
 
 SEZIONI:

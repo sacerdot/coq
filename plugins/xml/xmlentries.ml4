@@ -14,6 +14,7 @@
 
 (*i camlp4deps: "grammar/grammar.cma" i*)
 
+(* CSC: Restore Ltac
 open Ltac_plugin
 open Pcoq.Prim
 open Stdarg
@@ -34,3 +35,4 @@ VERNAC COMMAND EXTEND Xml CLASSIFIED AS QUERY
 
 | [ "Show" "XML" filename(fn) "Proof" ] -> [ Xmlcommand.show fn ]
 END
+*)

@@ -15,4 +15,6 @@ let print_xml_term f env sigma cic =
 let print_xml_term_ch channel =
  print_xml_term (output_string channel)
 
+(* CSC: Restore Ltac
 let _ = Ltac_plugin.Tacinterp.declare_xml_printer print_xml_term_ch
+*)

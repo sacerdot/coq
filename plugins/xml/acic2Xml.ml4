@@ -259,13 +259,13 @@ let print_object uri ids_to_inner_sorts =
         in
         let xmlbo =
          [< X.xml_cdata "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n" ;
-            X.xml_cdata ("<!DOCTYPE CurrentProof SYSTEM \""^dtdname ^"\">\n");
+            X.xml_cdata ("<!-- <!DOCTYPE CurrentProof SYSTEM \""^dtdname ^"\"> -->\n");
             xml_for_current_proof_body
          >] in
         let xmlty =
          [< X.xml_cdata "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n" ;
             X.xml_cdata
-             ("<!DOCTYPE ConstantType SYSTEM \"" ^ dtdname ^ "\">\n");
+             ("<!-- <!DOCTYPE ConstantType SYSTEM \"" ^ dtdname ^ "\"> -->\n");
             xml_for_current_proof_type
          >]
         in

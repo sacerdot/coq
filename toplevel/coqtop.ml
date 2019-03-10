@@ -227,6 +227,8 @@ let compile cur_feeder opts ~echo ~f_in ~f_out =
       let state = { doc; sid; proof = None; time = opts.time } in
       let state = load_init_vernaculars cur_feeder opts ~state in
       let ldir = Stm.get_ldir ~doc:state.doc in
+      (*let _ = Mltop.declare_ml_modules false [Envars.expand_path_macros ~warn:(fun x -> Feedback.msg_warning (str x)) "ltac_plugin"] in*)
+      let _ = Mltop.declare_ml_modules false [Envars.expand_path_macros ~warn:(fun x -> Feedback.msg_warning (str x)) "xml_plugin"] in
       Aux_file.(start_aux_file
         ~aux_file:(aux_file_name_for long_f_dot_vo)
         ~v_file:long_f_dot_v);
