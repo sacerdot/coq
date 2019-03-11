@@ -935,7 +935,10 @@ let _ =
          ()))
 ;;
 
-let _ = Hook.set CLexer.xml_output_comment (theory_output_string ~do_not_quote:true) ;;
+let _ = Hook.set CLexer.xml_output_comment (fun msg -> if not !ignore then begin
+ let msg = String.trim msg in
+ if msg <> "(**)" then theory_output_string ~do_not_quote:true msg
+end) ;;
 
 let _ =
   Hook.set Lib.xml_open_section
